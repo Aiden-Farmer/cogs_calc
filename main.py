@@ -1,4 +1,4 @@
-from datetime import datetime as dt
+from datetime import date as dt
 from openpyxl import load_workbook
 from typing import Iterator
 from abc import ABC, abstractmethod
@@ -45,7 +45,7 @@ class LandedCostRow(RowLike):
         self.sku = row[header['sku']]
         self.qty = row[header['qty']]
         self.unit_cost = row[header['unit_cost']]
-        self.date = dt.strptime(row[header['date']], header['date_format']) if not isinstance(header['date'], dt) else header['date']
+        self.date = dt.strptime(row[header['date']], header['date_format']) if not isinstance(row[header['date']], dt) else row[header['date']]
 
     @classmethod
     def from_row(cls, row) -> RowLike|None:
@@ -80,6 +80,10 @@ class InventoryRow(RowLike):
         return inv_row
 
     def allocate_from_landed_cost(self, cost_row):
+        if self.unallocated == 0:
+            self.excluded_dates.append(cost_row.date)
+            return
+        
         if self.inventory == 0:
             self.excluded_dates.append(cost_row.date)
             return
@@ -88,6 +92,7 @@ class InventoryRow(RowLike):
             self.total_cost += self.unallocated * cost_row.unit_cost
             self.average_cost = self.total_cost / self.inventory
             self.purchase_dates.append(cost_row.date)
+            self.unallocated = 0
 
         else:
             self.total_cost += (cost_row.qty * cost_row.unit_cost)
@@ -97,15 +102,19 @@ class InventoryRow(RowLike):
 
 
 def main():
+    
     inv_reader = Reader('inventory.xlsx', 'Inventory', InventoryRow)
-    cost_reader = Reader('landed_cost.xlsx', 'PURCHASES', LandedCostRow)
-
+    cost_reader = Reader('landed cost.xlsx', 'PURCHASES', LandedCostRow)
+    mrd = dt.min
     inventory: dict[str, RowLike|InventoryRow] = {}
 
     for inv_row in inv_reader.readlineo():
         inventory[inv_row.sku] = inv_row
 
     for cost_row in cost_reader.readlineo():
+        if cost_row.date < mrd:
+            raise ValueError('Landed Cost fiel is not sorted Newest to Oldest')
+        mrd = cost_row.date
         if cost_row.sku in inventory:
             inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
 
