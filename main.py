@@ -13,6 +13,9 @@ class RowLike(ABC):
         row_like = cls(row)
         return row_like
     
+    def allocate_from_landed_cost(self, cost_row):
+        raise NotImplementedError("This is an optional method that is not valdi for all types of RowLike")
+    
 
 class Reader:
     def __init__(self, wb_path, ws_name, return_type: type[RowLike]):
@@ -24,6 +27,8 @@ class Reader:
         for raw in self.ws.iter_rows(values_only=True):
             if (row := self.rt.from_row(raw)):
                 yield row 
+
+  
 
 
 class LandedCostRow(RowLike):
@@ -64,6 +69,9 @@ class InventoryRow(RowLike):
         self.total_cost = 0
         self.average_cost = None
 
+    def __repr__(self) -> str:
+        return f"InventoryRow(sku={self.sku}, inventory={self.inventory}, average_cost={self.average_cost})"
+
     @classmethod
     def from_row(cls, row) -> RowLike|None:
         inv_row = cls(row)
@@ -71,13 +79,14 @@ class InventoryRow(RowLike):
             return None
         return inv_row
 
-    def allocate_from_landed_cost(self, cost_row: LandedCostRow):
+    def allocate_from_landed_cost(self, cost_row):
         if self.inventory == 0:
             self.excluded_dates.append(cost_row.date)
             return
     
         elif cost_row.qty >= self.unallocated:
             self.total_cost += self.unallocated * cost_row.unit_cost
+            self.average_cost = self.total_cost / self.inventory
             self.purchase_dates.append(cost_row.date)
 
         else:
@@ -91,7 +100,7 @@ def main():
     inv_reader = Reader('inventory.xlsx', 'Inventory', InventoryRow)
     cost_reader = Reader('landed_cost.xlsx', 'PURCHASES', LandedCostRow)
 
-    inventory: dict[str, RowLike] = {}
+    inventory: dict[str, RowLike|InventoryRow] = {}
 
     for inv_row in inv_reader.readlineo():
         inventory[inv_row.sku] = inv_row
@@ -99,5 +108,12 @@ def main():
     for cost_row in cost_reader.readlineo():
         if cost_row.sku in inventory:
             inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+
+
+    print(inventory)
+
+
+if __name__ == "__main__":
+    main()
 
     
