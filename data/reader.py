@@ -12,20 +12,20 @@ import msoffcrypto
 import io
 from getpass import getpass
 
-from data.datarows import RowLike 
+from data.datarows import RowLike, Header
 
 
 T = TypeVar("T", bound="RowLike")
 DS = TypeVar("DS")
 
 class AbstractReader(ABC, Generic[T, DS]):
-    def __init__(self, data_source: DS, return_type: Type[T]):
-        self.data = self._initialize_data(data_source)
-        self.rt = return_type
-        
+    def __init__(self, data_source: DS, header: Header, return_type: Type[T]):
+        self.data: Any              = self._initialize_data(data_source)
+        self.rt: Type[T]            = return_type
+        self.header: Header         = header 
     
-    def readlineo(self) -> Generator[T]:
-        rows: Iterable[T|None] = (self.rt.from_row(raw) for raw in self._iter_raw())
+    def readline(self) -> Generator[T]:
+        rows: Iterable[T|None] = (self.rt.from_row(raw, self.header) for raw in self._iter_raw())
         valid_rows: Iterable[T] = (r for r in rows if r is not None)
 
         if not self.rt.must_sort:
@@ -61,11 +61,13 @@ class AbstractReader(ABC, Generic[T, DS]):
 class ExcelDataSource:
     wb_path: str
     ws_name: str
+    header_map = {}
 
 class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
     def __init__(self, data_source: ExcelDataSource, return_type: Type[T]):
         self.wb, self.data_source = self._initialize_data(data_source)
         self.rt = return_type
+        self.header_map = data_source.header_map
 
     def _iter_raw(self) -> Iterator[Any]:
         for i, raw in enumerate(self.data_source.iter_rows(values_only=True)):
