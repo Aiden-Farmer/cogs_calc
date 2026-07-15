@@ -15,3 +15,5 @@ wheels/
 *example outfile.xlsx
 *alt_inv_source.xlsx
 .sample_data
+.idea/*
+
