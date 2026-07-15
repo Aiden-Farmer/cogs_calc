@@ -16,10 +16,10 @@ def main():
     cost_reader = ExcelFileReader(lc_ds, LandedCostRow)
     inventory: dict[str, InventoryRow] = {}
 
-    for inv_row in inv_reader.readlineo():
+    for inv_row in inv_reader.readline():
         inventory[inv_row.sku] = inv_row
 
-    for cost_row in cost_reader.readlineo():
+    for cost_row in cost_reader.readline():
         if not cost_row.sku in inventory:
             continue
         inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
