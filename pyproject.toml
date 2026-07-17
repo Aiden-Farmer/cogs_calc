@@ -9,6 +9,7 @@ dependencies = [
     "mypy>=2.3.0",
     "openpyxl>=3.1.5",
     "openpyxl-stubs>=0.1.25",
+    "pre-commit>=4.6.0",
     "pytest>=9.1.1",
     "typeguard>=4.5.2",
 ]

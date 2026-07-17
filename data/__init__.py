@@ -1,2 +1,8 @@
-from .datarows import InventoryRow, LandedCostRow, Header
-from .reader import ExcelFileReader, ExcelDataSource
+from __future__ import annotations
+
+from . import excel
+from .datarows import Header
+from .datarows import InventoryRow
+from .datarows import LandedCostRow
+
+__all__ = ['Header', 'InventoryRow', 'LandedCostRow', 'excel']

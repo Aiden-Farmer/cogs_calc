@@ -1,11 +1,15 @@
-from abc import ABC, abstractmethod
-from typeguard import typechecked
-from typing import Self, Any
+from __future__ import annotations
 
-from typeguard import TypeCheckError
-
+from abc import ABC
+from abc import abstractmethod
+from collections.abc import Sequence
 from datetime import datetime as dt
 from decimal import Decimal
+from typing import Any
+from typing import Self
+
+from typeguard import typechecked
+
 
 class RowLike(ABC):
     must_sort: bool = False
@@ -14,101 +18,87 @@ class RowLike(ABC):
 
     @classmethod
     @abstractmethod
-    def from_row(cls, row, header: Header,) -> Self|None:
+    def from_row(cls, row: Sequence[Any], header: Header) -> Self | None:
         ...
-    
+
     def allocate_from_landed_cost(self, cost_row):
-        raise NotImplementedError("This is an optional method that is not valid for all types of RowLike")
-    
+        raise NotImplementedError('Optional method.')
+
 
 class LandedCostRow(RowLike):
     must_sort = True
-    
+
     def __init__(self, row: LandedCostDTO) -> None:
-        self.sku: str           = row.sku
-        self.qty: int           = row.qty
+        self.sku: str = row.sku
+        self.qty: Decimal = row.qty
         self.unit_cost: Decimal = row.unit_cost
-        self.date: dt           = row.date
+        self.date: dt = row.date
 
     def __repr__(self) -> str:
-        return f"LandedCostRow(sku={self.sku}, qty={self.qty}, unit_cost={self.unit_cost}, date={self.date})"
+        return f"{self.sku},{self.qty},{self.unit_cost},{self.date})"
 
     @classmethod
-    def from_row(cls, row, header) -> LandedCostRow|None:
-        dto = LandedCostDTO.sanitize_to_dto(row, header)
+    def from_row(cls, row, header) -> LandedCostRow | None:
+        dto = LandedCostDTO.sanitize(row, header)
         if not dto:
             return None
         row_like = cls(dto)
         return row_like
 
     @classmethod
-    def sort_key(cls, row: "LandedCostRow") -> Any:
+    def sort_key(cls, row: LandedCostRow) -> Any:
         return row.date
 
-@typechecked
+
 class InventoryRow(RowLike):
     must_sort = False
-    header = {
-        'sku': 1,
-        'base_sku': 0,
-        'inventory': 2
-    }
-    user_defined = {
-        38: 'z-Non-Inventory Item',
-        4: 'zzDummy',
-        5: 'zzDummy Placeholder'
-    }
-    date_format = '%Y-%m-%d'
-    
-    @typechecked
-    def __init__(self, row: list[str]):
-        self.sku: str                   = row[self.header['sku']]
-        try:
-            self.inventory: int         = int(float(row[self.header['inventory']]))
-        except ValueError as e:
-            raise TypeCheckError("Inventory Value must be int-like str") from e
 
-        self.unallocated: int           = self.inventory
-        self.purchase_dates: list[dt]   = []
-        self.excluded_dates: list[dt]   = []
-        self.total_cost: Decimal        = Decimal(0)
-        self.average_cost: Decimal|None = None
+    def __init__(self, row: InventoryDTO) -> None:
+        self.sku: str = row.sku
+        self.inventory: Decimal = row.inventory
+        # Initialize unallocated to the current inventory level
+        self.unallocated: Decimal = row.inventory
+
+        self.purchase_dates: list[dt] = []
+        self.excluded_dates: list[dt] = []
+        self.total_cost: Decimal = Decimal(0)
+        self.average_cost: Decimal | None = None
 
     @classmethod
-    def from_row(cls, row, header ) -> InventoryRow:
-        if (    
-            not (row[cls.header['sku']])
-            or (row[cls.header['sku']] != row[cls.header['base_sku']])
-        #     # or (" " in str(row[cls.header['sku']]))
-        #     # or (any(row[col_num] == exclusion_val for col_num, exclusion_val in cls.user_defined.items()))
-        ):
-        #     print(f"{row[cls.header['base_sku']]} rejected")
-            raise TypeCheckError('sku is either None or not == to base_sku')
+    def from_row(cls, row, header: Header) -> InventoryRow | None:
+        dto = InventoryDTO.sanitize(row, header)
+        if dto is None:
+            return None
+        return cls(dto)
 
-
-        return cls(row)
-    
     def export(self) -> dict:
         return {
             'a': self.sku,
             'b': self.inventory,
             'c': self.unallocated,
-            'd': " | ".join([dt.strftime(date, self.date_format) for date in self.purchase_dates]),
-            'e': " | ".join([dt.strftime(date, self.date_format) for date in self.excluded_dates]),
+            # Maybe give choice for dt fmt in export? hardcoded for now
+            'd': ' | '.join([
+                            dt.strftime(date, '%Y-%m-%d')
+                            for date in self.purchase_dates
+                            ]),
+            'e': ' | '.join([
+                            dt.strftime(date, '%Y-%m-%d')
+                            for date in self.excluded_dates
+                            ]),
             'f': self.total_cost,
-            'g': self.average_cost
-            }
+            'g': self.average_cost,
+        }
 
     def allocate_from_landed_cost(self, cost_row: LandedCostRow):
         if self.unallocated == 0:
             self.excluded_dates.append(cost_row.date)
             return
-    
+
         elif cost_row.qty >= self.unallocated:
             self.total_cost += self.unallocated * cost_row.unit_cost
             self.average_cost = self.total_cost / self.inventory
             self.purchase_dates.append(cost_row.date)
-            self.unallocated = 0
+            self.unallocated = Decimal(0)
             return
 
         else:
@@ -118,7 +108,13 @@ class InventoryRow(RowLike):
             self.purchase_dates.append(cost_row.date)
 
     def __repr__(self) -> str:
-        return f"InventoryRow(sku={self.sku}, inventory={self.inventory}, average_cost={self.average_cost}, purchase_dates={self.purchase_dates}, excluded_dates={self.excluded_dates}, total_cost={self.total_cost})"
+        return f"""InventoryRow(
+                    sku={self.sku},
+                    inventory={self.inventory},
+                    average_cost={self.average_cost},
+                    purchase_dates={self.purchase_dates},
+                    excluded_dates={self.excluded_dates},
+                    total_cost={self.total_cost})"""
 
 
 class Header:
@@ -130,8 +126,19 @@ class Header:
     date: int
     date_format: str
 
+    def __repr__(self):
+        return f"Header({self.__dict__})"
+
     @classmethod
-    def landed_cost(cls, sku, qty, unit_cost, date, date_format="") -> Header:
+    def landed_cost(
+        cls,
+            sku,
+            qty,
+            unit_cost,
+            date,
+            date_format='%Y-%m-%d',
+    ) -> Header:
+
         h = Header()
         h.sku = sku
         h.qty = qty
@@ -148,26 +155,69 @@ class Header:
         h.inventory = inventory
         return h
 
-@typechecked
-class InventoryDTO:
-    #Test both DTOs for rejection logic/type safety. 
-    pass
 
 @typechecked
+class InventoryDTO:
+    sku: str
+    base_sku: str
+    inventory: Decimal
+
+    @typechecked
+    @classmethod
+    def sanitize(cls, row, header: Header) -> InventoryDTO | None:
+        dto = InventoryDTO()
+        try:
+            sku = str(row[header.sku])
+            base_sku = str(row[header.base_sku])
+            inventory = Decimal(row[header.inventory])
+        except ValueError:
+            return None
+
+        banned_char = [' ']
+
+        if sku != base_sku:
+            return None
+        if len([c for c in banned_char if c in sku]) > 0:
+            return None
+
+        dto.sku = sku
+        dto.base_sku = base_sku
+        dto.inventory = inventory
+        return dto
+
+
 class LandedCostDTO:
     sku: str
-    qty: int
+    qty: Decimal
     unit_cost: Decimal
     date: dt
 
     @classmethod
-    def sanitize_to_dto(cls, row, header: Header) -> LandedCostDTO:
+    def sanitize(cls, row, header: Header) -> LandedCostDTO | None:
         dto = LandedCostDTO()
-        dto.sku = row[header.sku]
-        dto.qty = row[header.qty]
-        dto.unit_cost = row[header.unit_cost]
-        date = row[header.date]
+        try:
+            sku = str(row[header.sku])
+            qty = Decimal(row[header.qty])
+            unit_cost = Decimal(row[header.unit_cost])
+            date: dt | str = row[header.date]
+
+        except (ValueError, TypeError):
+            return None
+
+        dto.sku = sku
+        dto.qty = qty
+        dto.unit_cost = unit_cost
+
+        if not date:
+            return None
+
         if not isinstance(date, dt):
-            date = dt.strptime(date, header.date_format)
+            try:
+                date = dt.strptime(date, header.date_format)
+            except ValueError:
+                return None
         dto.date = date
+
+        if not all(vars(dto)):
+            return None
         return dto

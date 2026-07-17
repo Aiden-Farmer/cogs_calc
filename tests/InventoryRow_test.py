@@ -1,10 +1,18 @@
-import pytest
-from unittest.mock import Mock, MagicMock
-from data import LandedCostRow, InventoryRow, Header
+from __future__ import annotations
 
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+from typing import Any
+from unittest.mock import MagicMock
+from unittest.mock import Mock
+
+import pytest
 from typeguard import TypeCheckError
+
+from data import Header
+from data import InventoryRow
+from data import LandedCostRow
+
 
 class TestInventoryRowConstructor:
     """
@@ -12,18 +20,19 @@ class TestInventoryRowConstructor:
         'sku': 1,
         'base_sku': 0,
         'inventory': 2
-    }  
+    }
     """
+
     def test_inventory_row_from_row_constructor(self):
         h = Header.inventory_row(0, 1, 2)
-        raw = []
-        raw.append('test_sku')
-        raw.append('test_sku')
-        raw.append(20)
+        # row can be any object that implements __getitem__?
+        raw: list[Any] = [0, 0, 0]
+        raw[0] = 'test_sku'
+        raw[1] = 'test_sku'
+        raw[2] = 100
 
         assert isinstance(InventoryRow.from_row(raw, h), InventoryRow)
 
-    
     def test_inventory_row_from_row_raises_when_input_has_no_sku(self):
         h = Header.inventory_row(0, 1, 2)
         raw = []
@@ -43,7 +52,7 @@ class TestInventoryRowConstructor:
         with pytest.raises(TypeCheckError):
             InventoryRow.from_row(raw, h)
 
-    def test_inventory_row_throws_when_bad_inventory_datatype(self):
+    def test_inventory_row_raises_when_bad_inventory_datatype(self):
         h = Header.inventory_row(0, 1, 2)
         raw = []
         raw.append('sku')
@@ -53,14 +62,14 @@ class TestInventoryRowConstructor:
         with pytest.raises(TypeCheckError):
             InventoryRow.from_row(raw, h)
 
-    def test_inventory_row_raises_when_bad_sku_datatype(self):
+    def test_inventory_row_coerces_when_bad_sku_datatype(self):
         h = Header.inventory_row(0, 1, 2)
         raw = []
         raw.append(00000)
         raw.append(00000)
         raw.append(10)
-        with pytest.raises(TypeCheckError):
-            InventoryRow.from_row(raw, h)
+        assert isinstance(InventoryRow.from_row(raw, h), InventoryRow)
+
 
 class TestInventoryRowAllocation:
     @staticmethod
@@ -79,7 +88,7 @@ class TestInventoryRowAllocation:
         inv_row = InventoryRow.from_row(raw, h)
         assert isinstance(inv_row, InventoryRow)
         return (inv_row, cost)
-    
+
     def test_partial_allocation_from_landed_cost_decrements_unallocated(self):
         inv_row, cost = self._create_row_instances()
 
@@ -109,7 +118,6 @@ class TestInventoryRowAllocation:
         assert inv_row.total_cost == cost_total_cost
         assert inv_row.average_cost == cost.unit_cost
 
-    
     def test_allocations_with_different_costs_impact_avco_proportional_to_units_allocated(self):
         inv_row, cost = self._create_row_instances()
 
@@ -117,18 +125,8 @@ class TestInventoryRowAllocation:
         cost.unit_cost = Decimal('2')
         inv_row.allocate_from_landed_cost(cost)
 
-        cost_total_cost = Decimal('300') #Original cost Mock had unit cost=1, 100qty
-       
+        # Original cost Mock had unit cost=1, 100qty
+        cost_total_cost = Decimal('300')
+
         assert inv_row.total_cost == cost_total_cost
         assert inv_row.average_cost == Decimal('1.5')
-
-    
- 
-            
-
-    
-
-
-
-
-        
