@@ -5,4 +5,4 @@ from .datarows import Header
 from .datarows import InventoryRow
 from .datarows import LandedCostRow
 
-__all__ = ['Header', 'InventoryRow', 'LandedCostRow', 'excel']
+__all__ = ["Header", "InventoryRow", "LandedCostRow", "excel"]

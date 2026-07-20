@@ -12,8 +12,8 @@ from data.datarows import Header
 from data.datarows import RowLike
 
 
-T = TypeVar('T', bound='RowLike')
-DS = TypeVar('DS')
+T = TypeVar("T", bound="RowLike")
+DS = TypeVar("DS")
 
 
 class AbstractReader(ABC, Generic[T, DS]):
@@ -25,8 +25,10 @@ class AbstractReader(ABC, Generic[T, DS]):
     def readline(self) -> Generator[T]:
         rows: Generator[T | None] = (
             self.rt.from_row(
-                raw, self.header,
-            ) for raw in self._iter_raw()
+                raw,
+                self.header,
+            )
+            for raw in self._iter_raw()
         )
         valid_rows: Iterable[T] = (r for r in rows if r is not None)
 
@@ -34,20 +36,18 @@ class AbstractReader(ABC, Generic[T, DS]):
             yield from valid_rows
             return
 
-        sort_key = getattr(self.rt, 'sort_key', None)
+        sort_key = getattr(self.rt, "sort_key", None)
         if not sort_key:
             raise RowLikeConfigError(
-                'Sort_key must be defined on RowLike object.',
+                "Sort_key must be defined on RowLike object.",
             )
         yield from sorted(valid_rows, key=sort_key, reverse=True)
 
     @abstractmethod
-    def _initialize_data(self, ds) -> Any:
-        ...
+    def _initialize_data(self, ds) -> Any: ...
 
     @abstractmethod
-    def _iter_raw(self) -> Iterable:
-        ...
+    def _iter_raw(self) -> Iterable: ...
 
     def close(self) -> None:
         """Default no-op; override where teardown needed."""

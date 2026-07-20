@@ -18,11 +18,10 @@ class RowLike(ABC):
 
     @classmethod
     @abstractmethod
-    def from_row(cls, row: Sequence[Any], header: Header) -> Self | None:
-        ...
+    def from_row(cls, row: Sequence[Any], header: Header) -> Self | None: ...
 
     def allocate_from_landed_cost(self, cost_row):
-        raise NotImplementedError('Optional method.')
+        raise NotImplementedError("Optional method.")
 
 
 class LandedCostRow(RowLike):
@@ -73,20 +72,18 @@ class InventoryRow(RowLike):
 
     def export(self) -> dict:
         return {
-            'a': self.sku,
-            'b': self.inventory,
-            'c': self.unallocated,
+            "a": self.sku,
+            "b": self.inventory,
+            "c": self.unallocated,
             # Maybe give choice for dt fmt in export? hardcoded for now
-            'd': ' | '.join([
-                            dt.strftime(date, '%Y-%m-%d')
-                            for date in self.purchase_dates
-                            ]),
-            'e': ' | '.join([
-                            dt.strftime(date, '%Y-%m-%d')
-                            for date in self.excluded_dates
-                            ]),
-            'f': self.total_cost,
-            'g': self.average_cost,
+            "d": " | ".join(
+                [dt.strftime(date, "%Y-%m-%d") for date in self.purchase_dates]
+            ),
+            "e": " | ".join(
+                [dt.strftime(date, "%Y-%m-%d") for date in self.excluded_dates]
+            ),
+            "f": self.total_cost,
+            "g": self.average_cost,
         }
 
     def allocate_from_landed_cost(self, cost_row: LandedCostRow):
@@ -102,7 +99,7 @@ class InventoryRow(RowLike):
             return
 
         else:
-            self.total_cost += (cost_row.qty * cost_row.unit_cost)
+            self.total_cost += cost_row.qty * cost_row.unit_cost
             self.unallocated -= cost_row.qty
             self.average_cost = self.total_cost / self.unallocated
             self.purchase_dates.append(cost_row.date)
@@ -132,11 +129,11 @@ class Header:
     @classmethod
     def landed_cost(
         cls,
-            sku,
-            qty,
-            unit_cost,
-            date,
-            date_format='%Y-%m-%d',
+        sku,
+        qty,
+        unit_cost,
+        date,
+        date_format="%Y-%m-%d",
     ) -> Header:
 
         h = Header()
@@ -173,7 +170,7 @@ class InventoryDTO:
         except ValueError:
             return None
 
-        banned_char = [' ']
+        banned_char = [" "]
 
         if sku != base_sku:
             return None
@@ -201,7 +198,7 @@ class LandedCostDTO:
             unit_cost = Decimal(row[header.unit_cost])
             date: dt | str = row[header.date]
 
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return None
 
         dto.sku = sku

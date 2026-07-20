@@ -11,8 +11,8 @@ from data import LandedCostRow
 
 
 def main():
-    inv_ds = excel.Source('alt_inv_source.xlsx', 'Sheet1')
-    lc_ds = excel.Source('landed cost.xlsx', 'PURCHASES')
+    inv_ds = excel.Source("alt_inv_source.xlsx", "Sheet1")
+    lc_ds = excel.Source("landed cost.xlsx", "PURCHASES")
 
     inv_h = Header.inventory_row(
         sku=1,
@@ -45,18 +45,24 @@ def main():
     ws = wb.active
     if not ws:
         raise ValueError
-    ws.title = 'Inventory Asset Value'
-    ws.append([
-        'SKU', 'Inventory Cost', 'Unallocated', 'Dates Received',
-        'Dates received not counting against Average Cost',
-        'Total Cost', 'Average Cost',
-    ])
+    ws.title = "Inventory Asset Value"
+    ws.append(
+        [
+            "SKU",
+            "Inventory Cost",
+            "Unallocated",
+            "Dates Received",
+            "Dates received not counting against Average Cost",
+            "Total Cost",
+            "Average Cost",
+        ]
+    )
     for item in inventory.values():
         ws.append(item.export())
 
-    wb.save('outfile.xlsx')
-    startfile('outfile.xlsx')
+    wb.save("outfile.xlsx")
+    startfile("outfile.xlsx")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

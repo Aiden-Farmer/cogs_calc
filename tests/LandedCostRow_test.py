@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import random
 from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-import pytest
 
 from data import Header
-from data import InventoryRow
 from data import LandedCostRow
 
 
 class TestLandedCostRowConstructor:
-
     def _create_data(self):
         data: list[Any] = [None for i in range(20)]
-        data[0] = 'sku'
+        data[0] = "sku"
         data[2] = 200
         data[3] = float(2.0)
         data[4] = datetime.min
@@ -36,10 +32,13 @@ class TestLandedCostRowConstructor:
 
     def test_constructor_handles_date_str(self):
         self._create_data()
-        self.data[10] = '2020-12-31'
+        self.data[10] = "2020-12-31"
         h = Header.landed_cost(
-            sku=0, qty=2, unit_cost=3,
-            date=10, date_format='%Y-%m-%d',
+            sku=0,
+            qty=2,
+            unit_cost=3,
+            date=10,
+            date_format="%Y-%m-%d",
         )
         lc = LandedCostRow.from_row(self.data, h)
 

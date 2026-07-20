@@ -17,7 +17,7 @@ from ..datarows import RowLike
 from ..reader import AbstractReader
 from ..reader import Header
 
-T = TypeVar('T', bound='RowLike')
+T = TypeVar("T", bound="RowLike")
 
 
 @dataclass
@@ -27,7 +27,9 @@ class ExcelDataSource:
 
 
 class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
-    def __init__(self, data_source: ExcelDataSource, header: Header, return_type: type[T]):
+    def __init__(
+        self, data_source: ExcelDataSource, header: Header, return_type: type[T]
+    ):
         self.wb, self.data_source = self._initialize_data(data_source)
         self.rt = return_type
         self.header: Header = header
@@ -38,11 +40,14 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
                 continue
             yield raw
 
-    def _initialize_data(self, ds: ExcelDataSource) -> tuple[Workbook, ReadOnlyWorksheet]:
+    def _initialize_data(
+        self, ds: ExcelDataSource
+    ) -> tuple[Workbook, ReadOnlyWorksheet]:
         try:
             wb = xl.load_workbook(
                 filename=ds.wb_path,
-                read_only=True, data_only=True,
+                read_only=True,
+                data_only=True,
             )
         except BadZipFile as e:
             decrypted = self._handle_password_protected_xl(filename=ds.wb_path)
@@ -52,12 +57,13 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
                 ) from e
             wb = xl.load_workbook(
                 filename=decrypted,
-                read_only=True, data_only=True,
+                read_only=True,
+                data_only=True,
             )
 
         ws = wb[ds.ws_name]
         if not isinstance(ws, ReadOnlyWorksheet):
-            raise TypeError('Data must be in a Worksheet, not ChartSheet.')
+            raise TypeError("Data must be in a Worksheet, not ChartSheet.")
         return wb, ws
 
     def close(self) -> None:
@@ -67,10 +73,10 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
     def _handle_password_protected_xl(filename) -> io.BytesIO | None:
         decrypted = io.BytesIO()
         try:
-            with open(filename, 'rb') as f:
+            with open(filename, "rb") as f:
                 # Check for OLE File Hexadecimal signature.
                 header = f.read(8)
-                if header != b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1':
+                if header != b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1":
                     return None
 
                 u_input_pass = getpass(
