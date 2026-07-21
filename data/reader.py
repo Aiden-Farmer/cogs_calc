@@ -11,7 +11,6 @@ from typing import TypeVar
 from data.datarows import Header
 from data.datarows import RowLike
 
-
 T = TypeVar("T", bound="RowLike")
 DS = TypeVar("DS")
 

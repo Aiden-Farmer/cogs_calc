@@ -105,13 +105,14 @@ class InventoryRow(RowLike):
             self.purchase_dates.append(cost_row.date)
 
     def __repr__(self) -> str:
-        return f"""InventoryRow(
-                    sku={self.sku},
-                    inventory={self.inventory},
-                    average_cost={self.average_cost},
-                    purchase_dates={self.purchase_dates},
-                    excluded_dates={self.excluded_dates},
-                    total_cost={self.total_cost})"""
+        return (
+            f"InventoryRow(sku={self.sku!r}, "
+            f"inventory={self.inventory!r}, "
+            f"average_cost={self.average_cost!r}, "
+            f"purchase_dates={self.purchase_dates!r}, "
+            f"excluded_dates={self.excluded_dates!r}, "
+            f"total_cost={self.total_cost!r})"
+        )
 
 
 class Header:
