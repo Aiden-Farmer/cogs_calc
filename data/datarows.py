@@ -25,6 +25,9 @@ class RowLike(ABC):
 
 
 class LandedCostRow(RowLike):
+    """
+    A specific item purchase record with a sku, quantity, date and cost.
+    """
     must_sort = True
 
     def __init__(self, row: LandedCostDTO) -> None:
@@ -50,6 +53,9 @@ class LandedCostRow(RowLike):
 
 
 class InventoryRow(RowLike):
+    """
+    An inventory item with quantity and allocated quantity. Has no time-awareness. 
+    """
     must_sort = False
 
     def __init__(self, row: InventoryDTO) -> None:
@@ -116,6 +122,10 @@ class InventoryRow(RowLike):
 
 
 class Header:
+    """ 
+    Maps raw data to RowLike instance, used by RowLike.from_row class method. 
+    Expected to be defined in Reader instance. 
+    """
     sku: int
     base_sku: int
     qty: int
@@ -123,9 +133,6 @@ class Header:
     unit_cost: int
     date: int
     date_format: str
-
-    def __repr__(self):
-        return f"Header({self.__dict__})"
 
     @classmethod
     def landed_cost(
@@ -136,6 +143,7 @@ class Header:
         date,
         date_format="%Y-%m-%d",
     ) -> Header:
+        """ Creates a Header instance with all necessary LandedCostRow mappings. """
 
         h = Header()
         h.sku = sku
@@ -146,12 +154,22 @@ class Header:
         return h
 
     @classmethod
-    def inventory_row(cls, sku, base_sku, inventory) -> Header:
+    def inventory_row(
+        cls, 
+        sku, 
+        base_sku, 
+        inventory
+    ) -> Header:
+        """ Creates a Header instance with all necessary InventoryRow mappings."""
+        
         h = Header()
         h.sku = sku
         h.base_sku = base_sku
         h.inventory = inventory
         return h
+
+    def __repr__(self):
+        return f"Header({self.__dict__})"
 
 
 @typechecked
