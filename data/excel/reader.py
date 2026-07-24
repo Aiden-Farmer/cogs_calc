@@ -7,6 +7,7 @@ from getpass import getpass
 from typing import Any
 from typing import TypeVar
 from zipfile import BadZipFile
+from datetime import datetime
 
 import msoffcrypto
 import openpyxl as xl
@@ -67,6 +68,7 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
         return wb, ws
 
     def close(self) -> None:
+        """ Free wb. """
         self.wb.close()
 
     @staticmethod
@@ -88,6 +90,11 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
                 return decrypted
         except BadZipFile:
             return None
+
+def remove_wb_dates_after_target(self, target: datetime):
+    #release resource so we can reopen with write permissions. 
+    raise NotImplementedError
+    
 
 
 class CouldNotOpenFile(BaseException):

@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Sequence
+from collections import defaultdict
 from datetime import datetime as dt
 from decimal import Decimal
 from typing import Any
@@ -10,11 +11,14 @@ from typing import Self
 
 from typeguard import typechecked
 
+from copy import copy
+
 
 class RowLike(ABC):
     must_sort: bool = False
     header: dict[str, int]
     sku: str
+    qty: Decimal
 
     @classmethod
     @abstractmethod
@@ -23,6 +27,28 @@ class RowLike(ABC):
     def allocate_from_landed_cost(self, cost_row):
         raise NotImplementedError("Optional method.")
 
+
+kit_ref: dict[str, dict[str, int]] = {}
+
+
+def split_kits(func):
+    def wrapper(*args, **kwargs):
+        item: RowLike = func(*args, **kwargs)
+        if item is None:
+            return
+        if not isinstance(item, RowLike):
+            raise TypeError("Expected Rowlike, got %s", type(item))
+
+        if item.sku not in kit_ref:
+            yield item
+            return
+        
+        for c_sku, c_qty in kit_ref[item.sku].items():
+                c = copy(item)
+                c.sku = c_sku
+                c.qty = item.qty * c_qty # Multiply parent inventory level by kit component qty 
+                yield c
+    return wrapper
 
 class LandedCostRow(RowLike):
     """
@@ -39,7 +65,9 @@ class LandedCostRow(RowLike):
     def __repr__(self) -> str:
         return f"{self.sku},{self.qty},{self.unit_cost},{self.date})"
 
+    
     @classmethod
+    @split_kits
     def from_row(cls, row, header) -> LandedCostRow | None:
         dto = LandedCostDTO.sanitize(row, header)
         if not dto:
@@ -60,7 +88,7 @@ class InventoryRow(RowLike):
 
     def __init__(self, row: InventoryDTO) -> None:
         self.sku: str = row.sku
-        self.inventory: Decimal = row.inventory
+        self.qty: Decimal = row.inventory
         # Initialize unallocated to the current inventory level
         self.unallocated: Decimal = row.inventory
 
@@ -79,7 +107,7 @@ class InventoryRow(RowLike):
     def export(self) -> dict:
         return {
             "a": self.sku,
-            "b": self.inventory,
+            "b": self.qty,
             "c": self.unallocated,
             # Maybe give choice for dt fmt in export? hardcoded for now
             "d": " | ".join(
@@ -99,7 +127,7 @@ class InventoryRow(RowLike):
 
         elif cost_row.qty >= self.unallocated:
             self.total_cost += self.unallocated * cost_row.unit_cost
-            self.average_cost = self.total_cost / self.inventory
+            self.average_cost = self.total_cost / self.qty
             self.purchase_dates.append(cost_row.date)
             self.unallocated = Decimal(0)
             return
@@ -113,7 +141,7 @@ class InventoryRow(RowLike):
     def __repr__(self) -> str:
         return (
             f"InventoryRow(sku={self.sku!r}, "
-            f"inventory={self.inventory!r}, "
+            f"inventory={self.qty!r}, "
             f"average_cost={self.average_cost!r}, "
             f"purchase_dates={self.purchase_dates!r}, "
             f"excluded_dates={self.excluded_dates!r}, "
@@ -237,3 +265,6 @@ class LandedCostDTO:
         if not all(vars(dto)):
             return None
         return dto
+
+
+

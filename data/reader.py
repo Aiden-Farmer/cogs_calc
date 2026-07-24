@@ -48,15 +48,19 @@ class AbstractReader(ABC, Generic[T, DS]):
     @abstractmethod
     def _iter_raw(self) -> Iterable: ...
 
-    def close(self) -> None:
-        """Default no-op; override where teardown needed."""
-        pass
+
+
+    #Context management
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    def close(self) -> None:
+        """Default no-op; override where teardown needed."""
+        pass
 
 
 class RowLikeConfigError(BaseException):
