@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from getpass import getpass
 from typing import Any
@@ -14,9 +14,12 @@ import openpyxl as xl
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
+from typing import Iterable
+
 from ..datarows import RowLike
 from ..reader import AbstractReader
 from ..reader import Header
+from ..datarow_mutation_utils import split_kits
 
 T = TypeVar("T", bound="RowLike")
 
@@ -35,7 +38,12 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
         self.rt = return_type
         self.header: Header = header
 
-    def _iter_raw(self) -> Iterator[Any]:
+    
+    def readline(self) -> Generator[T, None, None]:
+        return super().readline()
+
+    @split_kits
+    def _iter_raw(self) -> Iterable[RowLike]:
         for i, raw in enumerate(self.data_source.iter_rows(values_only=True)):
             if i == 0:
                 continue
