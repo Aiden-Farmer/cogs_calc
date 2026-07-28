@@ -3,15 +3,12 @@ from __future__ import annotations
 from abc import ABC
 from abc import abstractmethod
 from collections.abc import Sequence
-from collections import defaultdict
 from datetime import datetime as dt
 from decimal import Decimal
 from typing import Any
 from typing import Self
 
 from typeguard import typechecked
-
-from datarow_mutation_utils import split_kits
 
 
 class RowLike(ABC):
@@ -27,10 +24,12 @@ class RowLike(ABC):
     def allocate_from_landed_cost(self, cost_row):
         raise NotImplementedError("Optional method.")
 
+
 class LandedCostRow(RowLike):
     """
     A specific item purchase record with a sku, quantity, date and cost.
     """
+
     must_sort = True
 
     def __init__(self, row: LandedCostDTO) -> None:
@@ -42,7 +41,6 @@ class LandedCostRow(RowLike):
     def __repr__(self) -> str:
         return f"{self.sku},{self.qty},{self.unit_cost},{self.date})"
 
-    
     @classmethod
     def from_row(cls, row, header) -> LandedCostRow | None:
         dto = LandedCostDTO.sanitize(row, header)
@@ -58,8 +56,9 @@ class LandedCostRow(RowLike):
 
 class InventoryRow(RowLike):
     """
-    An inventory item with quantity and allocated quantity. Has no time-awareness. 
+    An inventory item with quantity and allocated quantity. Has no time-awareness.
     """
+
     must_sort = False
 
     def __init__(self, row: InventoryDTO) -> None:
@@ -126,10 +125,11 @@ class InventoryRow(RowLike):
 
 
 class Header:
-    """ 
-    Maps raw data to RowLike instance, used by RowLike.from_row class method. 
-    Expected to be defined in Reader instance. 
     """
+    Maps raw data to RowLike instance, used by RowLike.from_row class method.
+    Expected to be defined in Reader instance.
+    """
+
     sku: int
     base_sku: int
     qty: int
@@ -147,7 +147,7 @@ class Header:
         date,
         date_format="%Y-%m-%d",
     ) -> Header:
-        """ Creates a Header instance with all necessary LandedCostRow mappings. """
+        """Creates a Header instance with all necessary LandedCostRow mappings."""
 
         h = Header()
         h.sku = sku
@@ -158,14 +158,9 @@ class Header:
         return h
 
     @classmethod
-    def inventory_row(
-        cls, 
-        sku, 
-        base_sku, 
-        inventory
-    ) -> Header:
-        """ Creates a Header instance with all necessary InventoryRow mappings."""
-        
+    def inventory_row(cls, sku, base_sku, inventory) -> Header:
+        """Creates a Header instance with all necessary InventoryRow mappings."""
+
         h = Header()
         h.sku = sku
         h.base_sku = base_sku
@@ -241,6 +236,3 @@ class LandedCostDTO:
         if not all(vars(dto)):
             return None
         return dto
-
-
-
