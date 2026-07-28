@@ -6,7 +6,9 @@ from typing import Any
 from unittest.mock import MagicMock
 import pytest
 
-from data import *
+from data import Header
+from data import InventoryRow
+from data import LandedCostRow
 
 
 class TestInventoryRowConstructor:

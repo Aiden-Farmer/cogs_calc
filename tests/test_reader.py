@@ -2,7 +2,8 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from data import *
+from data import InventoryRow
+from data import LandedCostRow
 
 # Private submodules
 from data.datarows import RowLike
