@@ -11,7 +11,7 @@ from typing import Self
 
 from typeguard import typechecked
 
-from copy import copy
+from datarow_mutation_utils import split_kits
 
 
 class RowLike(ABC):
@@ -26,29 +26,6 @@ class RowLike(ABC):
 
     def allocate_from_landed_cost(self, cost_row):
         raise NotImplementedError("Optional method.")
-
-
-kit_ref: dict[str, dict[str, int]] = {}
-
-
-def split_kits(func):
-    def wrapper(*args, **kwargs):
-        item: RowLike = func(*args, **kwargs)
-        if item is None:
-            return
-        if not isinstance(item, RowLike):
-            raise TypeError("Expected Rowlike, got %s", type(item))
-
-        if item.sku not in kit_ref:
-            yield item
-            return
-        
-        for c_sku, c_qty in kit_ref[item.sku].items():
-                c = copy(item)
-                c.sku = c_sku
-                c.qty = item.qty * c_qty # Multiply parent inventory level by kit component qty 
-                yield c
-    return wrapper
 
 class LandedCostRow(RowLike):
     """
@@ -67,7 +44,6 @@ class LandedCostRow(RowLike):
 
     
     @classmethod
-    @split_kits
     def from_row(cls, row, header) -> LandedCostRow | None:
         dto = LandedCostDTO.sanitize(row, header)
         if not dto:

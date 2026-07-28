@@ -48,9 +48,7 @@ class AbstractReader(ABC, Generic[T, DS]):
     @abstractmethod
     def _iter_raw(self) -> Iterable: ...
 
-
-
-    #Context management
+    # Context management
 
     def __enter__(self):
         return self
