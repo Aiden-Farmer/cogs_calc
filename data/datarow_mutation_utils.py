@@ -6,6 +6,7 @@ from .datarows import RowLike, LandedCostRow
 
 kit_ref: dict[str, dict[str, int]] = {}
 
+
 def component_cost_allocation(
     total_cost: Decimal,
     component_kit_qty: Decimal,
@@ -35,7 +36,6 @@ def component_cost_allocation(
 
     def _allocate_quantity_based_cost() -> Decimal:
         return total_cost * component_kit_qty / total_components
-    
 
     def _allocate_user_defined_cost() -> Decimal:
         if not user_defined_cost_allocation:

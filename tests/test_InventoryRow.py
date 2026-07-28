@@ -8,6 +8,7 @@ import pytest
 
 from data import *
 
+
 class TestInventoryRowConstructor:
     """
         header = {
