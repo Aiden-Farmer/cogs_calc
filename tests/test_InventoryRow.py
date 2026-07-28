@@ -8,7 +8,6 @@ import pytest
 
 from data import *
 
-
 class TestInventoryRowConstructor:
     """
         header = {
@@ -34,7 +33,6 @@ class TestInventoryRowConstructor:
         raw.append(None)
         raw.append("sku")
         raw.append(2)
-
         should_be_none = InventoryRow.from_row(raw, h)
         assert should_be_none is None
 
