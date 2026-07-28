@@ -4,7 +4,6 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-
 from data import Header
 from data import LandedCostRow
 
