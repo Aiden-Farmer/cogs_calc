@@ -61,5 +61,5 @@ class AbstractReader(ABC, Generic[T, DS]):
         pass
 
 
-class RowLikeConfigError(BaseException):
+class RowLikeConfigError(Exception):
     pass

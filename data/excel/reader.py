@@ -102,6 +102,5 @@ def remove_wb_dates_after_target(self, target: datetime):
     # release resource so we can reopen with write permissions.
     raise NotImplementedError
 
-
-class CouldNotOpenFile(BaseException):
+class CouldNotOpenFile(Exception):
     pass
