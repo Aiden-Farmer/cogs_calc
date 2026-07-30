@@ -14,10 +14,10 @@ from pickle import load, dump
 #  If sellercloud changes the
 
 _HEADER_ROWS = {0}
-_PARENT_SKU_ROW =   0
-_COMPONENT_SKU_ROW = 1
-_KIT_QTY_ROW = 2
-_UNIT_COST_ROW = 11
+_PARENT_SKU_COL =   0
+_COMPONENT_SKU_COL = 1
+_KIT_QTY_COL = 2
+_UNIT_COST_COL = 11
 
 class ExcelKitReader():
     def __init__(
@@ -37,10 +37,10 @@ class ExcelKitReader():
         
         for row in self._iter():
             try:
-                parent_sku = row[_PARENT_SKU_ROW]
-                child_sku = row[_COMPONENT_SKU_ROW]
-                kit_qty = int(row[_KIT_QTY_ROW])
-                unit_cost = Decimal(row[_UNIT_COST_ROW])
+                parent_sku = row[_PARENT_SKU_COL]
+                child_sku = row[_COMPONENT_SKU_COL]
+                kit_qty = int(row[_KIT_QTY_COL])
+                unit_cost = Decimal(row[_UNIT_COST_COL])
                 self.kits[parent_sku][child_sku] = {"qty": kit_qty, "cost": unit_cost}
             except (ValueError, InvalidOperation) as e:
                 raise DataSourceError(f"{row} is invalid. Check Sellercloud Kit export and make sure columns have not changed.") from e
@@ -90,9 +90,12 @@ class ExcelKitReader():
             data_only=True,
         )
 
+        if len(wb.sheetnames) > 1:
+            raise DataSourceError("Must have exactly one Worksheet in file.")
+
         ws = wb.active
         if not isinstance(ws, ReadOnlyWorksheet):
-            raise TypeError("Data must be in a Worksheet, not ChartSheet.")
+            raise TypeError(f"Data must be in a Worksheet, not {type(ws)}.")
     
         return wb, ws
 
