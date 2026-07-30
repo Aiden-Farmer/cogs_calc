@@ -18,7 +18,6 @@ from typing import Iterable
 from ..datarows import RowLike
 from ..reader import AbstractReader
 from ..reader import Header
-from ..datarow_mutation_utils import split_kits
 
 T = TypeVar("T", bound="RowLike")
 
@@ -37,11 +36,14 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
         self.rt = return_type
         self.header: Header = header
 
+        if not self.wb or not self.data_source:
+            raise ValueError
+
+    @split_kits
     def readline(self) -> Generator[T, None, None]:
         return super().readline()
 
-    @split_kits
-    def _iter_raw(self) -> Iterable[RowLike]:
+    def _iter_raw(self) -> Iterable[tuple]:
         for i, raw in enumerate(self.data_source.iter_rows(values_only=True)):
             if i == 0:
                 continue
@@ -101,6 +103,7 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
 def remove_wb_dates_after_target(self, target: datetime):
     # release resource so we can reopen with write permissions.
     raise NotImplementedError
+
 
 class CouldNotOpenFile(Exception):
     pass

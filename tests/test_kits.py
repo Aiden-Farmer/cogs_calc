@@ -1,4 +1,4 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 from unittest import TestCase
 import openpyxl
 from io import BytesIO
@@ -9,34 +9,35 @@ from openpyxl.workbook.workbook import Workbook
 
 # consts from invetnroy_kits.reader for ease of use
 _HEADER_ROWS = {0}
-_PARENT_SKU_COL =   0
+_PARENT_SKU_COL = 0
 _COMPONENT_SKU_COL = 1
 _KIT_QTY_COL = 2
 _UNIT_COST_COL = 11
 
+
 class TestKitReader(TestCase):
     @staticmethod
-    def get_test_excel_bytes(): 
+    def get_test_excel_bytes():
 
         wb = openpyxl.Workbook(write_only=False)
         ws = wb.active
         header = [None] * 20
         for i in range(len(header)):
-            header[i] = 'header row' # type: ignore
+            header[i] = "header row"  # type: ignore
         ws.append(header)
 
         row1 = [None] * 20
-        row1[_PARENT_SKU_COL] = 'parent_sku' # type: ignore
-        row1[_COMPONENT_SKU_COL] = 'component' # type: ignore
-        row1[_KIT_QTY_COL] = 2 # type: ignore
-        row1[_UNIT_COST_COL] = 2.3123 # type: ignore
+        row1[_PARENT_SKU_COL] = "parent_sku"  # type: ignore
+        row1[_COMPONENT_SKU_COL] = "component"  # type: ignore
+        row1[_KIT_QTY_COL] = 2  # type: ignore
+        row1[_UNIT_COST_COL] = 2.3123  # type: ignore
         ws.append(row1)
 
         row2 = [None] * 20
-        row2[_PARENT_SKU_COL] = 'parent_sku' # type: ignore
-        row2[_COMPONENT_SKU_COL] = 'component2' # type: ignore
-        row2[_KIT_QTY_COL] = 1 # type: ignore
-        row2[_UNIT_COST_COL] = 15 # type: ignore
+        row2[_PARENT_SKU_COL] = "parent_sku"  # type: ignore
+        row2[_COMPONENT_SKU_COL] = "component2"  # type: ignore
+        row2[_KIT_QTY_COL] = 1  # type: ignore
+        row2[_UNIT_COST_COL] = 15  # type: ignore
         ws.append(row2)
 
         buf = BytesIO()
@@ -52,12 +53,15 @@ class TestKitReader(TestCase):
             self.get_test_excel_bytes(), read_only=True, data_only=True
         )
 
-        with patch('inventory_kits.reader.xl.load_workbook') as mock_load, \
-            patch('inventory_kits.reader.ExcelKitReader._save_kits_to_disk') as mock_save:
-
+        with (
+            patch("inventory_kits.reader.xl.load_workbook") as mock_load,
+            patch(
+                "inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
+            ) as mock_save,
+        ):
             mock_load.return_value = real_wb
 
-            x = ExcelKitReader('fake_file.xslx')
+            x = ExcelKitReader("fake_file.xslx")
             assert isinstance(x.wb, Workbook)
             assert isinstance(x.data_source, ReadOnlyWorksheet)
 
@@ -71,38 +75,40 @@ class TestKitReader(TestCase):
             buf.seek(0)
             return buf
 
-        real_wb = openpyxl.load_workbook(
-            _helper(), read_only=True, data_only=True
-        )
-        with patch('inventory_kits.reader.xl.load_workbook') as mock_load, \
-            patch('inventory_kits.reader.ExcelKitReader._save_kits_to_disk') as mock_save:
-
+        real_wb = openpyxl.load_workbook(_helper(), read_only=True, data_only=True)
+        with (
+            patch("inventory_kits.reader.xl.load_workbook") as mock_load,
+            patch(
+                "inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
+            ) as mock_save,
+        ):
             mock_load.return_value = real_wb
-            
-            with self.assertRaises(DataSourceError): 
-                ExcelKitReader('fake_file.xslx')
 
-    
-    
+            with self.assertRaises(DataSourceError):
+                ExcelKitReader("fake_file.xslx")
+
     def test_reader_raises_when_row_data_incomplete(self):
         real_wb = openpyxl.load_workbook(
             self.get_test_excel_bytes(), read_only=True, data_only=True
         )
 
-        with patch('inventory_kits.reader.xl.load_workbook') as mock_load, \
-            patch('inventory_kits.reader.ExcelKitReader._save_kits_to_disk') as mock_save:
-
+        with (
+            patch("inventory_kits.reader.xl.load_workbook") as mock_load,
+            patch(
+                "inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
+            ) as mock_save,
+        ):
             mock_load.return_value = real_wb
 
-            x = ExcelKitReader('fake_file.xslx')
+            x = ExcelKitReader("fake_file.xslx")
             x.process_sellercloud_kit_export()
 
             assert mock_load.called
             assert mock_save.called
-            assert 'parent_sku' in x.kits
-            assert 'component' in x.kits['parent_sku'] and 'component2' in x.kits['parent_sku']
-
+            assert "parent_sku" in x.kits
+            assert (
+                "component" in x.kits["parent_sku"]
+                and "component2" in x.kits["parent_sku"]
+            )
 
     # def test_reader_
-
-

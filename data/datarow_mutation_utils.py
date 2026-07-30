@@ -1,6 +1,6 @@
 from copy import copy
 from decimal import Decimal
-from typing import Callable, Iterable
+from typing import Callable, Generator
 
 from .datarows import RowLike, LandedCostRow
 
@@ -54,20 +54,20 @@ def component_cost_allocation(
 
 
 def split_kits(
-    func: Callable[..., Iterable[RowLike]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
-) -> Callable[..., Iterable[RowLike]]:
+    func: Callable[..., Generator[RowLike]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
+) -> Callable[..., Generator[RowLike]]:
 
-    def wrapper(*args, **kwargs) -> Iterable[RowLike]:
+    def wrapper(*args, **kwargs) -> Generator[RowLike]:
         for item in func(*args, **kwargs):
             if not item:
-                return
+                continue
 
             if not isinstance(item, RowLike):
                 raise TypeError(f"Expected Rowlike, got {type(item)}")
 
             if item.sku not in kit_ref:
                 yield item
-                return
+                continue
 
             if isinstance(item, LandedCostRow):
                 for c_sku, c_qty in kit_ref[item.sku]["components"].items():
@@ -83,7 +83,7 @@ def split_kits(
                         kit_ref[item.sku].get("cost_percent"),
                     )
                     yield c
-                return
+                continue
 
             for c_sku, c_qty in kit_ref[item.sku]["components"].items():
                 c = copy(item)

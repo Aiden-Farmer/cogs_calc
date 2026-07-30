@@ -4,7 +4,7 @@ from abc import ABC
 from abc import abstractmethod
 from collections.abc import Sequence
 from datetime import datetime as dt
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from typing import Self
 
@@ -185,7 +185,7 @@ class InventoryDTO:
             sku = str(row[header.sku])
             base_sku = str(row[header.base_sku])
             inventory = Decimal(row[header.inventory])
-        except ValueError:
+        except ValueError, InvalidOperation, TypeError:
             return None
 
         banned_char = [" "]
