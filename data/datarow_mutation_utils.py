@@ -1,15 +1,37 @@
+import os
 from copy import copy
 from decimal import Decimal
-from typing import Callable, Generator
+from typing import Callable, Generator, TypeVar
 
 from .datarows import RowLike, LandedCostRow
 
-kit_ref: dict[str, dict[str, int]] = {}
+from pickle import loads
+
+# TODO windows specific here, figure out a non-hacky path maniuplation to get expected kits.obj location for kit_ref
+cwd = os.getcwd()
+kit_ref_path = cwd + "\\kits.obj"
+cost_ref_path = cwd + "\\costs.obj"
+
+try:
+    with open(kit_ref_path, "rb") as fd:
+        kit_ref = loads(fd.read())
+except EOFError, FileNotFoundError:  # EOFError to cover file exists but no data
+    print("Kits.obj has no data, program will be unable to split kits.")
+    kit_ref = {}
+
+try:
+    with open(cost_ref_path, "rb") as fd:
+        cost_ref = loads(fd.read())
+except EOFError, FileNotFoundError:  # EOFError to cover file  exists but no data
+    print(
+        "costs.obj has no data, program will be unable to allocate component costs on a value basis."
+    )
+    cost_ref = {}
 
 
 def component_cost_allocation(
     total_cost: Decimal,
-    component_kit_qty: Decimal,
+    component_kit_qty: int,
     ALLOCATE_COMP_COST: int,
     total_components: Decimal,
     user_defined_cost_allocation=None,
@@ -22,25 +44,26 @@ def component_cost_allocation(
     """
     if not isinstance(total_cost, Decimal):
         raise TypeError("total_cost must be type Decimal")
-    if not isinstance(component_kit_qty, Decimal):
-        raise TypeError("Component kit quantity must be type Decimal")
-    if not isinstance(total_components, Decimal):
+    if not isinstance(component_kit_qty, int):
+        raise TypeError("Component kit quantity must be type int")
+    if ALLOCATE_COMP_COST == 1 and not isinstance(total_components, Decimal):
         raise TypeError("total_components must be type Decimal")
 
     if total_cost < 0:
         raise ValueError("total_cost must be non-negative")
     if component_kit_qty <= 0:
         raise ValueError("component_kit_qty must be positive")
-    if total_components <= 0:
+    if ALLOCATE_COMP_COST == 1 and total_components <= 0:
         raise ValueError("total_components must be positive")
 
     def _allocate_quantity_based_cost() -> Decimal:
         return total_cost * component_kit_qty / total_components
 
     def _allocate_user_defined_cost() -> Decimal:
-        if not user_defined_cost_allocation:
+
+        if user_defined_cost_allocation is None:
             raise ValueError(
-                "When using ALLOCATE_COMP_COST=0 user must define cost_percent"
+                "When using ALLOCATE_COMP_COST=0 user must define pc_total_cost"
             )
         return total_cost * user_defined_cost_allocation
 
@@ -53,11 +76,14 @@ def component_cost_allocation(
             raise ValueError("ALLOCATE_COMP_COST flag must be either 0 or one.")
 
 
-def split_kits(
-    func: Callable[..., Generator[RowLike]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
-) -> Callable[..., Generator[RowLike]]:
+T = TypeVar("T", bound="RowLike")
 
-    def wrapper(*args, **kwargs) -> Generator[RowLike]:
+
+def split_kits(
+    func: Callable[..., Generator[T]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
+) -> Callable[..., Generator[T]]:
+
+    def wrapper(*args, **kwargs) -> Generator[T]:
         for item in func(*args, **kwargs):
             if not item:
                 continue
@@ -70,25 +96,27 @@ def split_kits(
                 continue
 
             if isinstance(item, LandedCostRow):
-                for c_sku, c_qty in kit_ref[item.sku]["components"].items():
+                for c_sku, c_info in (
+                    kit_ref[item.sku].items()
+                ):  # c_info: {"qty": int, "cost": Decimal, "pc_of_total_cost": Decimal}
                     c = copy(item)
                     c.sku = c_sku
-                    c.qty = item.qty * c_qty
+                    c.qty = item.qty * c_info["qty"]
                     c.date = item.date
                     c.unit_cost = component_cost_allocation(
-                        item.unit_cost,
-                        c_qty,
-                        ALLOCATE_COMP_COST,
-                        kit_ref[item.sku]["total_components"],
-                        kit_ref[item.sku].get("cost_percent"),
+                        total_cost=item.unit_cost,
+                        component_kit_qty=c_info["qty"],
+                        ALLOCATE_COMP_COST=ALLOCATE_COMP_COST,
+                        total_components=None,
+                        user_defined_cost_allocation=c_info["pc_of_total_cost"],
                     )
                     yield c
                 continue
-
-            for c_sku, c_qty in kit_ref[item.sku]["components"].items():
-                c = copy(item)
-                c.sku = c_sku
-                c.qty = item.qty * c_qty
-                yield c
+            else:
+                for c_sku, c_info in kit_ref[item.sku].items():
+                    c = copy(item)
+                    c.sku = c_sku
+                    c.qty = item.qty * c_info["qty"]
+                    yield c
 
     return wrapper
