@@ -110,7 +110,7 @@ class InventoryRow(RowLike):
         else:
             self.total_cost += cost_row.qty * cost_row.unit_cost
             self.unallocated -= cost_row.qty
-            self.average_cost = self.total_cost / self.unallocated
+            self.average_cost = self.total_cost / self.qty
             self.purchase_dates.append(cost_row.date)
 
     def __repr__(self) -> str:
