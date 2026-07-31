@@ -33,6 +33,7 @@ class ExcelKitReader:
         self.read_kits_from_export()
         self.update_avco()
         self._save_kits_to_disk()
+        self._save_kits_total_cost_to_disk()
 
     def read_kits_from_export(self) -> None:
         """Reads sellercloud formatted kit file to self.kits"""
@@ -82,6 +83,10 @@ class ExcelKitReader:
     def _save_kits_to_disk(self) -> None:
         with open(b"kits.obj", "wb") as f:
             dump(self.kits, f)
+
+    def _save_kits_total_cost_to_disk(self) -> None:
+        with open(b"costs.obj", "wb") as f:
+            dump(self.total_costs, f)
 
     def _iter(self, h_rows=_HEADER_ROWS) -> Iterable[tuple]:
         """yields rows from datasource, skips first row assumming header"""
