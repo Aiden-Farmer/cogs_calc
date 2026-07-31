@@ -12,14 +12,18 @@ import msoffcrypto
 import openpyxl as xl
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
+from warnings import filterwarnings
 
 from typing import Iterable
 
+from ..datarow_mutation_utils import split_kits
 from ..datarows import RowLike
 from ..reader import AbstractReader
 from ..reader import Header
 
 T = TypeVar("T", bound="RowLike")
+
+filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
 
 @dataclass
