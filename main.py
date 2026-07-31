@@ -4,13 +4,14 @@ from os import startfile
 
 import openpyxl as xl
 import argparse
+from tqdm import tqdm
 
 from data import excel
 from data import Header
 from data import InventoryRow
 from data import LandedCostRow
 
-from inventory_kits.reader import DataSourceError
+from inventory_kits.reader import ExcelKitReader, DataSourceError
 
 
 def calculate_all_lineitems_average_cost_from_excel(
@@ -53,14 +54,17 @@ def calculate_all_lineitems_average_cost_from_excel(
 
     inventory: dict[str, InventoryRow] = {}
 
-    for inv_row in inv_reader.readline():
-        inventory[inv_row.sku] = inv_row
-        print(inv_row)
+    for inv_row in tqdm(inv_reader.readline(), desc="Reading Inventory records"):
+        if inv_row.sku in inventory:
+            inventory[inv_row.sku].qty += inv_row.qty
+            inventory[inv_row.sku].unallocated += inv_row.unallocated
+        else:
+            inventory[inv_row.sku] = inv_row
 
     if not inventory:
         raise DataSourceError
 
-    for cost_row in cost_reader.readline():
+    for cost_row in tqdm(cost_reader.readline(), desc="Reading purchase records"):
         if cost_row.sku not in inventory:
             continue
         inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
@@ -85,8 +89,18 @@ def calculate_all_lineitems_average_cost_from_excel(
     for item in inventory.values():
         ws.append(item.export())
 
-    wb.save("outfile.xlsx")
-    startfile("outfile.xlsx")
+    while True:
+        try:
+            wb.save("outfile.xlsx")
+            startfile("outfile.xlsx")
+            break
+        except PermissionError:
+            print("'outfile.xlsx is in use, please close it to complete program.")
+            uin = input(
+                "Once the file is closed, enter [yes] or [y] to get output, any other input will terminate the program: "
+            )
+            if uin not in {"y", "yes"}:
+                break
 
 
 if __name__ == "__main__":
@@ -108,16 +122,23 @@ if __name__ == "__main__":
     parser.add_argument(
         "--purchase-file",
         "-p",
-        nargs=1,
         default="private/landed cost.xlsx",
     )
 
+    parser.add_argument("--inventory-file", "-i", default="private/inventory.xlsx")
+
     parser.add_argument(
-        "--inventory-file", "-i", nargs=1, default="private/inventory.xlsx"
+        "--kit-upload",
+        help=" Upload a kit file to split purchases and inventory into kit components.",
     )
 
     args = parser.parse_args()
     args._get_args()
+    if args.kit_upload:
+        kit_obj = ExcelKitReader(args.kit_upload)
+        kit_obj.process_sellercloud_kit_export()
+        kit_obj.close()
+
     calculate_all_lineitems_average_cost_from_excel(
         landed_cost_filepath=args.purchase_file,
         landed_cost_sheet_name=args.purchases_sheet_name,
