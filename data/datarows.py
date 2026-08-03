@@ -4,11 +4,17 @@ from abc import ABC
 from abc import abstractmethod
 from collections.abc import Sequence
 from datetime import datetime as dt
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, DivisionByZero
 from typing import Any
 from typing import Self
 
+from dataclasses import dataclass
 from typeguard import typechecked
+
+
+_INVALID_SKU_CHAR = {
+    " ",
+}
 
 
 class RowLike(ABC):
@@ -19,7 +25,7 @@ class RowLike(ABC):
 
     @classmethod
     @abstractmethod
-    def from_row(cls, row: Sequence[Any], header: Header) -> Self | None: ...
+    def from_row(cls, row: Sequence[Any], header: Header) -> Self | FailedRow: ...
 
     def allocate_from_landed_cost(self, cost_row):
         raise NotImplementedError("Optional method.")
@@ -42,10 +48,11 @@ class LandedCostRow(RowLike):
         return f"{self.sku},{self.qty},{self.unit_cost},{self.date})"
 
     @classmethod
-    def from_row(cls, row, header) -> LandedCostRow | None:
+    def from_row(cls, row, header) -> LandedCostRow | FailedRow:
         dto = LandedCostDTO.sanitize(row, header)
-        if not dto:
-            return None
+        if isinstance(dto, FailedRow):
+            return dto
+
         row_like = cls(dto)
         return row_like
 
@@ -72,11 +79,13 @@ class InventoryRow(RowLike):
         self.total_cost: Decimal = Decimal(0)
         self.average_cost: Decimal | None = None
 
+    @typechecked
     @classmethod
-    def from_row(cls, row, header: Header) -> InventoryRow | None:
+    def from_row(cls, row, header: Header) -> InventoryRow | FailedRow:
         dto = InventoryDTO.sanitize(row, header)
-        if dto is None:
-            return None
+        if isinstance(dto, FailedRow):
+            return dto
+
         return cls(dto)
 
     def export(self) -> dict:
@@ -96,6 +105,14 @@ class InventoryRow(RowLike):
         }
 
     def allocate_from_landed_cost(self, cost_row: LandedCostRow):
+        if cost_row.qty <= 0:
+            self.excluded_dates.append(cost_row.date)
+            print(
+                "Potential data integrity error and purchases datasource 0 qty purchase row: ",
+                cost_row,
+            )
+            return
+
         if self.unallocated == 0:
             self.excluded_dates.append(cost_row.date)
             return
@@ -107,10 +124,14 @@ class InventoryRow(RowLike):
             self.unallocated = Decimal(0)
             return
 
-        else:
+        elif cost_row.qty < self.unallocated:
             self.total_cost += cost_row.qty * cost_row.unit_cost
             self.unallocated -= cost_row.qty
-            self.average_cost = self.total_cost / self.qty
+            try:
+                self.average_cost = self.total_cost / (self.qty - self.unallocated)
+            except InvalidOperation, DivisionByZero:
+                print("issue:", self.qty, cost_row.qty, self.unallocated, self.sku)
+                self.average_cost = self.total_cost
             self.purchase_dates.append(cost_row.date)
 
     def __repr__(self) -> str:
@@ -122,6 +143,13 @@ class InventoryRow(RowLike):
             f"excluded_dates={self.excluded_dates!r}, "
             f"total_cost={self.total_cost!r})"
         )
+
+
+@dataclass
+class FailedRow:
+    row: Any
+    error: Exception
+    context: str
 
 
 class Header:
@@ -179,21 +207,27 @@ class InventoryDTO:
 
     @typechecked
     @classmethod
-    def sanitize(cls, row, header: Header) -> InventoryDTO | None:
+    def sanitize(cls, row, header: Header) -> InventoryDTO | FailedRow:
         dto = InventoryDTO()
         try:
             sku = str(row[header.sku])
             base_sku = str(row[header.base_sku])
             inventory = Decimal(row[header.inventory])
-        except ValueError, InvalidOperation, TypeError:
-            return None
-
-        banned_char = [" "]
+        except (ValueError, InvalidOperation, TypeError) as e:
+            return FailedRow(
+                row=row,
+                error=e,
+                context="Row contents contained at least one incompatible type.",
+            )
 
         if sku != base_sku:
-            return None
-        if len([c for c in banned_char if c in sku]) > 0:
-            return None
+            return FailedRow(
+                row=row, error=ValueError(), context="Base must be the same as sku."
+            )
+        if len([c for c in _INVALID_SKU_CHAR if c in sku]) > 0:
+            return FailedRow(
+                row=row, error=ValueError(), context="Sku contains invalid character. "
+            )
 
         dto.sku = sku
         dto.base_sku = base_sku
@@ -208,7 +242,7 @@ class LandedCostDTO:
     date: dt
 
     @classmethod
-    def sanitize(cls, row, header: Header) -> LandedCostDTO | None:
+    def sanitize(cls, row, header: Header) -> LandedCostDTO | FailedRow:
         dto = LandedCostDTO()
         try:
             sku = str(row[header.sku])
@@ -216,23 +250,42 @@ class LandedCostDTO:
             unit_cost = Decimal(row[header.unit_cost])
             date: dt | str = row[header.date]
 
-        except ValueError, TypeError:
-            return None
+        except (ValueError, TypeError) as e:
+            return FailedRow(
+                row=row,
+                error=e,
+                context="One or more elements of row are incompatible type.",
+            )
+
+        if qty <= 0:
+            return FailedRow(
+                row=row,
+                error=ValueError(),
+                context="Purchase qty must be greater than zero",
+            )
 
         dto.sku = sku
         dto.qty = qty
         dto.unit_cost = unit_cost
 
         if not date:
-            return None
+            return FailedRow(
+                row=row, error=ValueError(), context=" Purchase Must have valid date."
+            )
 
         if not isinstance(date, dt):
             try:
                 date = dt.strptime(date, header.date_format)
             except ValueError:
-                return None
+                return FailedRow(
+                    row=row,
+                    error=TypeError(),
+                    context=f"Date value exists but is incompatible with {header.date_format}",
+                )
         dto.date = date
 
         if not all(vars(dto)):
-            return None
+            return FailedRow(
+                row=row, error=ValueError(), context="incomplete data in row."
+            )
         return dto

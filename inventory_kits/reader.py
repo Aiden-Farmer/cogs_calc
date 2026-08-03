@@ -8,6 +8,7 @@ from collections import defaultdict
 
 from pickle import load, dump
 
+from data import DataSourceError
 
 # Row locations, specific to sellercloud's standard kit export file format
 # so I'm not bothering with an easily user-changeable config.
@@ -112,10 +113,9 @@ class ExcelKitReader:
 
         return wb, ws
 
-    def close(self) -> None:
+    def close(self, save_new=False) -> None:
         """Free wb."""
+        if save_new:
+            self._save_kits_to_disk()
+            self._save_kits_total_cost_to_disk()
         self.wb.close()
-
-
-class DataSourceError(Exception):
-    pass

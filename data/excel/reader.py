@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import io
-from collections.abc import Generator
+from collections.abc import Iterator
 from dataclasses import dataclass
 from getpass import getpass
 from typing import TypeVar
@@ -20,6 +20,7 @@ from ..datarow_mutation_utils import split_kits
 from ..datarows import RowLike
 from ..reader import AbstractReader
 from ..reader import Header
+from ..reader import FailedRow
 
 T = TypeVar("T", bound="RowLike")
 
@@ -44,7 +45,7 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
             raise ValueError
 
     @split_kits
-    def readline(self) -> Generator[T, None, None]:
+    def readline(self) -> Iterator[T | FailedRow]:
         return super().readline()
 
     def _iter_raw(self) -> Iterable[tuple]:

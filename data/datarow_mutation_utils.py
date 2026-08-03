@@ -1,9 +1,9 @@
 import os
 from copy import copy
 from decimal import Decimal
-from typing import Callable, Generator, TypeVar
+from typing import Callable, Iterator, TypeVar
 
-from .datarows import RowLike, LandedCostRow
+from .datarows import RowLike, LandedCostRow, FailedRow
 
 from pickle import loads
 
@@ -80,12 +80,12 @@ T = TypeVar("T", bound="RowLike")
 
 
 def split_kits(
-    func: Callable[..., Generator[T]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
-) -> Callable[..., Generator[T]]:
+    func: Callable[..., Iterator[T | FailedRow]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
+) -> Callable[..., Iterator[T | FailedRow]]:
 
-    def wrapper(*args, **kwargs) -> Generator[T]:
+    def wrapper(*args, **kwargs) -> Iterator[T]:
         for item in func(*args, **kwargs):
-            if not item:
+            if isinstance(item, FailedRow):
                 continue
 
             if not isinstance(item, RowLike):
@@ -107,7 +107,7 @@ def split_kits(
                         total_cost=item.unit_cost,
                         component_kit_qty=c_info["qty"],
                         ALLOCATE_COMP_COST=ALLOCATE_COMP_COST,
-                        total_components=None,
+                        total_components=c_info.get("total_components"),
                         user_defined_cost_allocation=c_info["pc_of_total_cost"],
                     )
                     yield c

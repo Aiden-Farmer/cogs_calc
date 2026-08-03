@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Any
 from unittest.mock import MagicMock
-import pytest
 
 from data import Header
 from data import InventoryRow
 from data import LandedCostRow
+from data import FailedRow
 
 
 class TestInventoryRowConstructor:
@@ -36,8 +36,10 @@ class TestInventoryRowConstructor:
         raw.append(None)
         raw.append("sku")
         raw.append(2)
-        should_be_none = InventoryRow.from_row(raw, h)
-        assert should_be_none is None
+        should_be_failed_row = InventoryRow.from_row(raw, h)
+        assert isinstance(should_be_failed_row, FailedRow)
+        assert isinstance(should_be_failed_row.error, ValueError)
+        # assert should_be_failed_row.context == "Base must be the same as sku."
 
     def test_inventory_row_from_row_returns_none_when_base_sku_not_matching(self):
         h = Header.inventory_row(0, 1, 2)
@@ -46,18 +48,21 @@ class TestInventoryRowConstructor:
         raw.append("some-other-sku")
         raw.append(100)
 
-        should_be_none = InventoryRow.from_row(raw, h)
-        assert should_be_none is None
+        fr = InventoryRow.from_row(raw, h)
+        assert isinstance(fr, FailedRow)
 
-    def test_inventory_row_raises_when_bad_inventory_datatype(self):
+    def test_inventory_row_handles_bad_inventory_datatype(self):
+        """
+        Expected Behavior is return None when invalid datatype and append failure dto record to cls.
+        """
         h = Header.inventory_row(0, 1, 2)
         raw = []
         raw.append("sku")
         raw.append("sku")
         raw.append("typo")
 
-        with pytest.raises(InvalidOperation):
-            InventoryRow.from_row(raw, h)
+        fr = InventoryRow.from_row(raw, h)
+        assert isinstance(fr, FailedRow)
 
     def test_inventory_row_coerces_when_bad_sku_datatype(self):
         h = Header.inventory_row(0, 1, 2)
@@ -113,11 +118,12 @@ class TestInventoryRowAllocation:
         assert inv_row.unallocated == 0
 
     def test_allocation_impacts_cost(self):
-        inv_row, cost = self._create_row_instances()
-        inv_row.allocate_from_landed_cost(cost)
-        cost_total_cost = cost.unit_cost * cost.qty
+        """was failing because purchase that did not completely allocate Inventory Row unallocated amount led to verage cost recalculation based off of current total cost / Inventory row total, over-generalizing allcoated qty average cost"""
+        inv_row, cost_row = self._create_row_instances()
+        inv_row.allocate_from_landed_cost(cost_row)
+        cost_total_cost = cost_row.unit_cost * cost_row.qty
         assert inv_row.total_cost == cost_total_cost
-        assert inv_row.average_cost == cost.unit_cost
+        assert inv_row.average_cost == cost_row.unit_cost
 
     def test_allocations_with_different_costs_impact_avco_proportional_to_units_allocated(
         self,

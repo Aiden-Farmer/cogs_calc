@@ -10,8 +10,12 @@ from data import excel
 from data import Header
 from data import InventoryRow
 from data import LandedCostRow
+from data import FailedRow
 
 from inventory_kits.reader import ExcelKitReader, DataSourceError
+
+_FAILED_INVENTORY_ROWS: list[FailedRow] = []
+_FAILED_PURCHASE_ROWS: list[FailedRow] = []
 
 
 def calculate_all_lineitems_average_cost_from_excel(
@@ -55,17 +59,31 @@ def calculate_all_lineitems_average_cost_from_excel(
     inventory: dict[str, InventoryRow] = {}
 
     for inv_row in tqdm(inv_reader.readline(), desc="Reading Inventory records"):
-        if inv_row.sku in inventory:
+        if isinstance(inv_row, FailedRow):
+            _FAILED_INVENTORY_ROWS.append(inv_row)
+            continue
+
+        elif inv_row.sku in inventory:
             inventory[inv_row.sku].qty += inv_row.qty
             inventory[inv_row.sku].unallocated += inv_row.unallocated
         else:
             inventory[inv_row.sku] = inv_row
 
     if not inventory:
-        raise DataSourceError
+        raise DataSourceError()
 
     for cost_row in tqdm(cost_reader.readline(), desc="Reading purchase records"):
+        if isinstance(cost_row, FailedRow):
+            _FAILED_PURCHASE_ROWS.append(cost_row)
+            continue
         if cost_row.sku not in inventory:
+            _FAILED_PURCHASE_ROWS.append(
+                FailedRow(
+                    row=cost_row,
+                    error=ValueError(),
+                    context="Purchase for item that is not in inventory.",
+                )
+            )
             continue
         inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
 
@@ -101,6 +119,12 @@ def calculate_all_lineitems_average_cost_from_excel(
             )
             if uin not in {"y", "yes"}:
                 break
+
+    for record in _FAILED_INVENTORY_ROWS:
+        print(record.row, ", ", record.context)
+
+    for record in _FAILED_PURCHASE_ROWS:
+        print(record.row, ", ", record.context)
 
 
 if __name__ == "__main__":

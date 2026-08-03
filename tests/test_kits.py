@@ -64,6 +64,8 @@ class TestKitReader(TestCase):
             x = ExcelKitReader("fake_file.xslx")
             assert isinstance(x.wb, Workbook)
             assert isinstance(x.data_source, ReadOnlyWorksheet)
+            x.close(save_new=True)
+            assert mock_save.called
 
     def test_reader_initialization_complains_about_multiple_sheets(self):
         def _helper():
@@ -78,9 +80,6 @@ class TestKitReader(TestCase):
         real_wb = openpyxl.load_workbook(_helper(), read_only=True, data_only=True)
         with (
             patch("inventory_kits.reader.xl.load_workbook") as mock_load,
-            patch(
-                "inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
-            ) as mock_save,
         ):
             mock_load.return_value = real_wb
 

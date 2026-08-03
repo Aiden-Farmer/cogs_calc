@@ -2,14 +2,16 @@ from __future__ import annotations
 
 from abc import ABC
 from abc import abstractmethod
-from collections.abc import Generator
+from collections.abc import Iterator
 from collections.abc import Iterable
 from typing import Any
 from typing import Generic
 from typing import TypeVar
 
 from data.datarows import Header
+from data.datarows import FailedRow
 from data.datarows import RowLike
+
 
 T = TypeVar("T", bound="RowLike")
 DS = TypeVar("DS")
@@ -21,15 +23,15 @@ class AbstractReader(ABC, Generic[T, DS]):
         self.rt: type[T] = return_type
         self.header: Header = header
 
-    def readline(self) -> Generator[T]:
-        rows: Generator[T | None] = (
+    def readline(self) -> Iterator[T | FailedRow]:
+        rows: Iterator[T | FailedRow] = (
             self.rt.from_row(
                 raw,
                 self.header,
             )
             for raw in self._iter_raw()
         )
-        valid_rows: Iterable[T] = (r for r in rows if r is not None)
+        valid_rows: Iterable[T] = (r for r in rows if not isinstance(r, FailedRow))
 
         if not self.rt.must_sort:
             yield from valid_rows
@@ -38,7 +40,7 @@ class AbstractReader(ABC, Generic[T, DS]):
         sort_key = getattr(self.rt, "sort_key", None)
         if not sort_key:
             raise RowLikeConfigError(
-                "Sort_key must be defined on RowLike object.",
+                "Sort_key must be defined on RowLike class.",
             )
         yield from sorted(valid_rows, key=sort_key, reverse=True)
 
