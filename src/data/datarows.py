@@ -189,6 +189,18 @@ class Header:
         h.inventory = inventory
         return h
 
+    @classmethod
+    def transfer_row(cls, to_sku, from_sku, qty, date, date_format) -> Header:
+        """Creates a Header isntacne with all necessary LandedCostRow mappings."""
+
+        h = Header()
+        h.sku = to_sku
+        h.base_sku = from_sku
+        h.qty = qty
+        h.date = date
+        h.date_format = date_format
+        return h
+
     def __repr__(self):
         return f"Header({self.__dict__})"
 
@@ -269,7 +281,7 @@ class LandedCostDTO:
 
         if not isinstance(date, dt):
             try:
-                date = dt.strptime(date, header.date_format)
+                date = dt.strptime(date, header.date_format)  # noqa: dtz007 File does not provide tzinfo.
             except ValueError:
                 return FailedRow(
                     row=row,
