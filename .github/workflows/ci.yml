@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    # Windows-only: src/adapters.py imports os.startfile at module scope,
+    # which doesn't exist on other platforms, so the suite can't collect on Linux/macOS.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.14"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run tests with coverage
+        run: uv run pytest --cov=main --cov=src --cov-report=term-missing --cov-report=json
+
+      - name: Type check (informational, not yet a required gate)
+        run: uv run mypy src main.py
+        continue-on-error: true
+
+      - name: Lint (informational, not yet a required gate)
+        run: uv run ruff check .
+        continue-on-error: true
+
+      - name: Compute coverage badge data
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        id: badge
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+
+          pct = json.load(open("coverage.json"))["totals"]["percent_covered"]
+          if pct >= 90:
+              color = "brightgreen"
+          elif pct >= 80:
+              color = "green"
+          elif pct >= 60:
+              color = "yellow"
+          else:
+              color = "red"
+          print(f"pct={pct:.1f}")
+          print(f"color={color}")
+          PY
+
+      - name: Publish coverage badge to badges branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        shell: bash
+        run: |
+          mkdir -p /tmp/badge-publish
+          cat > /tmp/badge-publish/coverage.json <<EOF
+          {"schemaVersion": 1, "label": "coverage", "message": "${{ steps.badge.outputs.pct }}%", "color": "${{ steps.badge.outputs.color }}"}
+          EOF
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin badges; then
+            git fetch origin badges
+            git checkout badges
+          else
+            git checkout --orphan badges
+            git rm -rf . > /dev/null 2>&1 || true
+          fi
+
+          cp /tmp/badge-publish/coverage.json coverage-badge.json
+          git add coverage-badge.json
+          git commit -m "Update coverage badge [skip ci]" --allow-empty || echo "nothing to commit"
+          git push origin badges
