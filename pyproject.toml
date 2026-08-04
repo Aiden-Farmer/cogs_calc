@@ -1,7 +1,7 @@
 [project]
 name = "cogs-calc"
 version = "0.1.0"
-description = "Add your description here"
+description = "Weighted-average inventory cost and asset valuation from Excel exports."
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
