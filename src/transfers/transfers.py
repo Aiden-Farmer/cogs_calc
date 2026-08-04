@@ -1,11 +1,11 @@
-from typing import Iterable
-
+from collections.abc import Iterable
 from datetime import datetime
+
 import openpyxl as xl
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
-from data import DataSourceError
+from src.data import DataSourceError
 
 
 class InventoryTransfer:
@@ -52,5 +52,5 @@ class TransferFileReader:
     def close(self, save_new=False) -> None:
         """Free wb"""
         if save_new:
-            ...
+            raise NotImplementedError
         self.wb.close()

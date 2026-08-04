@@ -6,7 +6,7 @@ import openpyxl
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
-from inventory_kits.reader import DataSourceError, ExcelKitReader
+from src.inventory_kits.reader import DataSourceError, ExcelKitReader
 
 # consts from invetnroy_kits.reader for ease of use
 _HEADER_ROWS = {0}

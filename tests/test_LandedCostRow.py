@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from data import FailedRow, Header, LandedCostRow
+from src.data import FailedRow, Header, LandedCostRow
 
 
 class TestLandedCostRowConstructor:

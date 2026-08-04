@@ -1,13 +1,16 @@
-
 from os import startfile
-import openpyxl as xl
-
 from typing import TypeVar
+
+import openpyxl as xl
 from tqdm import tqdm
 
-from data import RowLike, FailedRow, excel, InventoryRow, LandedCostRow, Header, DataSourceError
+from src.data import (
+    excel,
+)
+from src.data import DataSourceError, FailedRow, Header, InventoryRow, LandedCostRow, RowLike
 
 T = TypeVar("T", bound=RowLike)
+
 
 def give_reader(
     file_path: str, sheet_name: str, header: Header, return_type: type[T]
@@ -66,7 +69,10 @@ def allocate_landed_costs(
 
     return failed_rows
 
-def write_outfile(inventory: dict[str, InventoryRow], outfile_name: str = "outfile.xlsx"):
+
+def write_outfile(
+    inventory: dict[str, InventoryRow], outfile_name: str = "outfile.xlsx"
+):
     """write results of average cost calculation to file"""
     wb = xl.Workbook()
     ws = wb.active

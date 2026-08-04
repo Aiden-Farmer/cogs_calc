@@ -1,18 +1,18 @@
-from typing import Iterable
+from collections import defaultdict
+from collections.abc import Iterable
+from decimal import Decimal, InvalidOperation
+from pickle import dump, load
 
 import openpyxl as xl
-from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 from openpyxl.workbook.workbook import Workbook
-from decimal import Decimal, InvalidOperation
-from collections import defaultdict
+from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
-from pickle import load, dump
-
-from data import DataSourceError
+from src.data import DataSourceError
+from src.data.reader import AbstractReader
 
 # Row locations, specific to sellercloud's standard kit export file format
 # so I'm not bothering with an easily user-changeable config.
-#  If sellercloud changes the
+#  If sellercloud changes the file format, it'll be obvious when DataSourceError is raised.
 
 _HEADER_ROWS = {0}
 _PARENT_SKU_COL = 0
@@ -21,7 +21,7 @@ _KIT_QTY_COL = 2
 _UNIT_COST_COL = 11
 
 
-class ExcelKitReader:
+class ExcelKitReader(AbstractReader):
     def __init__(self, filename: str):
         self.wb, self.data_source = self._initialize_data(filename)
         self.kits: dict[str, dict[str, dict]] = defaultdict(dict)
@@ -39,7 +39,7 @@ class ExcelKitReader:
     def read_kits_from_export(self) -> None:
         """Reads sellercloud formatted kit file to self.kits"""
 
-        for row in self._iter():
+        for row in self._iter_raw():
             try:
                 parent_sku = row[_PARENT_SKU_COL]
                 child_sku = row[_COMPONENT_SKU_COL]
@@ -89,17 +89,17 @@ class ExcelKitReader:
         with open(b"costs.obj", "wb") as f:
             dump(self.total_costs, f)
 
-    def _iter(self, h_rows=_HEADER_ROWS) -> Iterable[tuple]:
+    def _iter_raw(self, h_rows=_HEADER_ROWS) -> Iterable[tuple]:
         """yields rows from datasource, skips first row assumming header"""
         for i, raw in enumerate(self.data_source.iter_rows(values_only=True)):
             if i in h_rows:
                 continue
             yield raw
 
-    def _initialize_data(self, filename) -> tuple[Workbook, ReadOnlyWorksheet]:
+    def _initialize_data(self, ds) -> tuple[Workbook, ReadOnlyWorksheet]:
 
         wb = xl.load_workbook(
-            filename=filename,
+            filename=ds,
             read_only=True,
             data_only=True,
         )

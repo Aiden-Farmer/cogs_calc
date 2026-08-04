@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Any
 from unittest.mock import MagicMock
 
-from data import FailedRow, Header, InventoryRow, LandedCostRow
+from src.data import FailedRow, Header, InventoryRow, LandedCostRow
 
 
 class TestInventoryRowConstructor:

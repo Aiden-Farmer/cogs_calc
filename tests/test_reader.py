@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from data import InventoryRow, LandedCostRow
-from data.datarow_mutation_utils import split_kits
+from src.data import InventoryRow, LandedCostRow
+from src.data.datarow_mutation_utils import split_kits
 
 # Private submodules
-from data.datarows import InventoryDTO, LandedCostDTO, RowLike
+from src.data.datarows import InventoryDTO, LandedCostDTO, RowLike
 
 
 class TestReader:
