@@ -244,7 +244,7 @@ class LandedCostDTO:
             unit_cost = Decimal(row[header.unit_cost])
             date: dt | str = row[header.date]
 
-        except (ValueError, TypeError) as e:
+        except (ValueError, InvalidOperation, TypeError) as e:
             return FailedRow(
                 row=row,
                 error=e,
@@ -278,7 +278,7 @@ class LandedCostDTO:
                 )
         dto.date = date
 
-        if not all(vars(dto)):
+        if not all(vars(dto).values()):
             return FailedRow(
                 row=row, error=ValueError(), context="incomplete data in row."
             )
