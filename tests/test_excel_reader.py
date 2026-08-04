@@ -152,9 +152,7 @@ class TestRequireWindows:
 
 
 class TestBackupPath:
-    def test_backup_path_preserves_dir_and_suffix_and_is_unique_looking(
-        self, tmp_path
-    ):
+    def test_backup_path_preserves_dir_and_suffix_and_is_unique_looking(self, tmp_path):
         original = tmp_path / "inventory.xlsx"
 
         backup = _backup_path(str(original))
