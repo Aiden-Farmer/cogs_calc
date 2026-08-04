@@ -4,13 +4,13 @@ from unittest.mock import patch
 
 import pytest
 
+from main import calculate_all_lineitems_average_cost_from_excel, main
 from src.data import FailedRow
-from src.main import calculate_all_lineitems_average_cost_from_excel, main
 
 
 @pytest.fixture(autouse=True)
 def _reset_failed_row_globals():
-    import src.main as main_module
+    import main as main_module
 
     main_module._FAILED_INVENTORY_ROWS.clear()
     main_module._FAILED_PURCHASE_ROWS.clear()
@@ -27,13 +27,13 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
 
         with (
             patch(
-                "src.main.give_reader", side_effect=[inv_reader, cost_reader]
+                "main.give_reader", side_effect=[inv_reader, cost_reader]
             ) as mock_give_reader,
             patch(
-                "src.main.build_inventory", return_value=(inventory, [])
+                "main.build_inventory", return_value=(inventory, [])
             ) as mock_build_inventory,
-            patch("src.main.allocate_landed_costs", return_value=[]) as mock_allocate,
-            patch("src.main.write_outfile") as mock_write_outfile,
+            patch("main.allocate_landed_costs", return_value=[]) as mock_allocate,
+            patch("main.write_outfile") as mock_write_outfile,
         ):
             calculate_all_lineitems_average_cost_from_excel(
                 inventory_file_path="inv.xlsx",
@@ -48,17 +48,21 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
         mock_write_outfile.assert_called_once_with(inventory)
 
     def test_accumulates_failed_rows_into_module_level_lists(self):
-        inv_fail = FailedRow(row=["bad-inv"], error=ValueError(), context="bad inventory row")
-        cost_fail = FailedRow(row=["bad-cost"], error=ValueError(), context="bad cost row")
+        inv_fail = FailedRow(
+            row=["bad-inv"], error=ValueError(), context="bad inventory row"
+        )
+        cost_fail = FailedRow(
+            row=["bad-cost"], error=ValueError(), context="bad cost row"
+        )
 
         with (
-            patch("src.main.give_reader", side_effect=[object(), object()]),
+            patch("main.give_reader", side_effect=[object(), object()]),
             patch(
-                "src.main.build_inventory",
+                "main.build_inventory",
                 return_value=({"sku-a": object()}, [inv_fail]),
             ),
-            patch("src.main.allocate_landed_costs", return_value=[cost_fail]),
-            patch("src.main.write_outfile"),
+            patch("main.allocate_landed_costs", return_value=[cost_fail]),
+            patch("main.write_outfile"),
         ):
             calculate_all_lineitems_average_cost_from_excel(
                 inventory_file_path="inv.xlsx",
@@ -67,7 +71,7 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
                 landed_cost_sheet_name="Purchases",
             )
 
-        import src.main as main_module
+        import main as main_module
 
         assert main_module._FAILED_INVENTORY_ROWS == [inv_fail]
         assert main_module._FAILED_PURCHASE_ROWS == [cost_fail]
@@ -84,7 +88,7 @@ class TestMainCli:
         ]
         with (
             patch("sys.argv", argv),
-            patch("src.main.calculate_all_lineitems_average_cost_from_excel") as mock_calc,
+            patch("main.calculate_all_lineitems_average_cost_from_excel") as mock_calc,
         ):
             main()
 
@@ -99,8 +103,8 @@ class TestMainCli:
         argv = ["main.py", "--kit-upload", "kits.xlsx"]
         with (
             patch("sys.argv", argv),
-            patch("src.main.ExcelKitReader") as mock_kit_reader_cls,
-            patch("src.main.calculate_all_lineitems_average_cost_from_excel"),
+            patch("main.ExcelKitReader") as mock_kit_reader_cls,
+            patch("main.calculate_all_lineitems_average_cost_from_excel"),
         ):
             main()
 
@@ -113,8 +117,8 @@ class TestMainCli:
         argv = ["main.py"]
         with (
             patch("sys.argv", argv),
-            patch("src.main.ExcelKitReader") as mock_kit_reader_cls,
-            patch("src.main.calculate_all_lineitems_average_cost_from_excel"),
+            patch("main.ExcelKitReader") as mock_kit_reader_cls,
+            patch("main.calculate_all_lineitems_average_cost_from_excel"),
         ):
             main()
 

@@ -30,9 +30,18 @@ class ExcelKitReader(AbstractReader):
         if not self.wb or not self.data_source:
             raise ValueError
 
+    def readline(self):
+        raise NotImplementedError(
+            "ExcelKitReader does not produce RowLike rows; "
+            "read_kits_from-export is does not produce consumable rows."
+            "To read rows, access ExcelKitReader.kits after calling "
+            "self.read_kits_from_export() or self.process_sellercloud_kit_export()"
+        )
+
     def process_sellercloud_kit_export(self):
+        """Read a sellercloud kit export and save to disk"""
         self.read_kits_from_export()
-        self.update_avco()
+        self.update_avco()  # Used to update average cost of kit parent.
         self._save_kits_to_disk()
         self._save_kits_total_cost_to_disk()
 
@@ -78,15 +87,15 @@ class ExcelKitReader(AbstractReader):
                 )
 
     def _load_kits_from_disk(self) -> None:
-        with open(b"kits.obj", "rb") as f:
+        with open("kits.obj", "rb") as f:
             self.kits = load(f)
 
     def _save_kits_to_disk(self) -> None:
-        with open(b"kits.obj", "wb") as f:
+        with open("kits.obj", "wb") as f:
             dump(self.kits, f)
 
     def _save_kits_total_cost_to_disk(self) -> None:
-        with open(b"costs.obj", "wb") as f:
+        with open("costs.obj", "wb") as f:
             dump(self.total_costs, f)
 
     def _iter_raw(self, h_rows=_HEADER_ROWS) -> Iterable[tuple]:

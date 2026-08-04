@@ -54,7 +54,9 @@ class TestAbstractReaderReadline:
         assert [r.value for r in rows] == ["ok1", "ok2"]
 
     def test_sorts_by_sort_key_descending_when_must_sort(self):
-        reader = _FakeReader(data_source=[1, 3, 2], header=None, return_type=_FakeSortedRowLike)
+        reader = _FakeReader(
+            data_source=[1, 3, 2], header=None, return_type=_FakeSortedRowLike
+        )
 
         rows = list(reader.readline())
 

@@ -24,6 +24,7 @@ filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
 _OLE_FILE_SIG = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
+
 @dataclass
 class ExcelDataSource:
     wb_path: str

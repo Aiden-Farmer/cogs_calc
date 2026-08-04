@@ -69,6 +69,21 @@ class TestInventoryRowConstructor:
         raw.append(10)
         assert isinstance(InventoryRow.from_row(raw, h), InventoryRow)
 
+    def test_inventory_row_rejects_sku_with_invalid_character(self):
+        h = Header.inventory_row(0, 1, 2)
+        raw = ["bad sku", "bad sku", 10]
+
+        fr = InventoryRow.from_row(raw, h)
+
+        assert isinstance(fr, FailedRow)
+
+
+class TestHeaderRepr:
+    def test_repr_includes_field_values(self):
+        h = Header.inventory_row(sku=0, base_sku=1, inventory=2)
+
+        assert repr(h) == f"Header({h.__dict__})"
+
 
 class TestInventoryRowAllocation:
     @staticmethod

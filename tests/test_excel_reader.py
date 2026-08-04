@@ -64,30 +64,36 @@ class TestInitializeData:
         encrypted_path = tmp_path / "protected.xlsx"
         encrypted_path.write_bytes(_OLE_FILE_SIG + b"\x00" * 8)
 
-        with patch.object(
-            ExcelFileReader, "_handle_password_protected_xl", return_value=None
+        with (
+            patch.object(
+                ExcelFileReader, "_handle_password_protected_xl", return_value=None
+            ),
+            pytest.raises(CouldNotOpenFile),
         ):
-            with pytest.raises(CouldNotOpenFile):
-                ExcelFileReader(
-                    ExcelDataSource(str(encrypted_path), "Sheet"),
-                    _INV_HEADER,
-                    InventoryRow,
-                )
+            ExcelFileReader(
+                ExcelDataSource(str(encrypted_path), "Sheet"),
+                _INV_HEADER,
+                InventoryRow,
+            )
 
     def test_raises_valueerror_when_initialize_data_returns_falsy(self):
-        with patch.object(
-            ExcelFileReader, "_initialize_data", return_value=(None, None)
+        with (
+            patch.object(
+                ExcelFileReader, "_initialize_data", return_value=(None, None)
+            ),
+            pytest.raises(ValueError),
         ):
-            with pytest.raises(ValueError):
-                ExcelFileReader(
-                    ExcelDataSource("book.xlsx", "Sheet"), _INV_HEADER, InventoryRow
-                )
+            ExcelFileReader(
+                ExcelDataSource("book.xlsx", "Sheet"), _INV_HEADER, InventoryRow
+            )
 
 
 class TestExcelFileReaderMisc:
     def test_close_closes_workbook(self, tmp_path):
         path = _write_workbook(tmp_path, [["header"]])
-        reader = ExcelFileReader(ExcelDataSource(path, "Sheet"), _INV_HEADER, InventoryRow)
+        reader = ExcelFileReader(
+            ExcelDataSource(path, "Sheet"), _INV_HEADER, InventoryRow
+        )
 
         with patch.object(reader.wb, "close") as mock_close:
             reader.close()
@@ -95,10 +101,10 @@ class TestExcelFileReaderMisc:
         mock_close.assert_called_once()
 
     def test_iter_raw_skips_header_row(self, tmp_path):
-        path = _write_workbook(
-            tmp_path, [["header"], ["a", "a", 1], ["b", "b", 2]]
+        path = _write_workbook(tmp_path, [["header"], ["a", "a", 1], ["b", "b", 2]])
+        reader = ExcelFileReader(
+            ExcelDataSource(path, "Sheet"), _INV_HEADER, InventoryRow
         )
-        reader = ExcelFileReader(ExcelDataSource(path, "Sheet"), _INV_HEADER, InventoryRow)
 
         rows = list(reader._iter_raw())
 
@@ -108,7 +114,9 @@ class TestExcelFileReaderMisc:
         path = _write_workbook(
             tmp_path, [["header"], ["a", "a", 1], ["bad-sku", "mismatch", 2]]
         )
-        reader = ExcelFileReader(ExcelDataSource(path, "Sheet"), _INV_HEADER, InventoryRow)
+        reader = ExcelFileReader(
+            ExcelDataSource(path, "Sheet"), _INV_HEADER, InventoryRow
+        )
 
         # Bypass the @split_kits decorator (it depends on process-wide kit data
         # loaded from disk at import time) to exercise the base read pipeline directly.

@@ -6,10 +6,10 @@ from decimal import Decimal
 import openpyxl
 import pytest
 
+from src.adapters import allocate_landed_costs, build_inventory, give_reader
 from src.data import DataSourceError, FailedRow, Header, InventoryRow, LandedCostRow
 from src.data.datarows import InventoryDTO, LandedCostDTO
 from src.data.excel.reader import ExcelFileReader
-from src.adapters import allocate_landed_costs, build_inventory, give_reader
 
 
 class _FakeReader:
