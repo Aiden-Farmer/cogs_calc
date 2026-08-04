@@ -53,7 +53,7 @@ def calculate_all_lineitems_average_cost_from_excel(
         print(record.row, ", ", record.context)
 
 
-if __name__ == "__main__":
+def main() -> None:
     parser = argparse.ArgumentParser(
         description="Generate Average cost, Inventory Asset Valuation"
     )
@@ -95,3 +95,7 @@ if __name__ == "__main__":
         inventory_file_path=args.inventory_file,
         inventory_sheet_name=args.inventory_sheet_name,
     )
+
+
+if __name__ == "__main__":
+    main()
