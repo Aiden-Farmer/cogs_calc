@@ -1,5 +1,4 @@
 from collections.abc import Iterable
-from datetime import datetime
 
 import openpyxl as xl
 from openpyxl.workbook import Workbook
@@ -7,19 +6,16 @@ from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
 from src.data import DataSourceError
 
-
-
-
 _HEADER_ROWS = {0}
 _FROM_SKU_COL = 0
 _TO_SKU_COL = 1
 _TRANSFER_QTY = 2
 _TRANSFER_DATE = 3
 
+
 class TransferFileReader:
     def __init__(self, filename):
         self.wb, self.data_source = self._initialize_data(filename)
-
 
     def _iter(self, h_rows=_HEADER_ROWS) -> Iterable[tuple]:
         """Needless wrapper func?"""
@@ -49,4 +45,3 @@ class TransferFileReader:
         if save_new:
             raise NotImplementedError
         self.wb.close()
-
