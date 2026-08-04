@@ -11,6 +11,7 @@ dependencies = [
     "openpyxl-stubs>=0.1.25",
     "pre-commit>=4.6.0",
     "pytest>=9.1.1",
+    "pywin32>=308 ; sys_platform == 'win32'",
     "tqdm>=4.70.0",
     "typeguard>=4.5.2",
 ]

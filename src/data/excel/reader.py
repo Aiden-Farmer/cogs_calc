@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import io
+import shutil
+import sys
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from getpass import getpass
+from pathlib import Path
 from typing import TypeVar
 from warnings import filterwarnings
 from zipfile import BadZipFile
@@ -106,9 +109,78 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
             return None
 
 
-def remove_wb_dates_after_target(self, target: datetime):
-    # release resource so we can reopen with write permissions.
-    raise NotImplementedError
+class UnsupportedPlatformError(OSError):
+    pass
+
+
+def _require_windows(feature: str) -> None:
+    """Raise clearly instead of letting a win32-only call fail lower down."""
+    if sys.platform != "win32":
+        raise UnsupportedPlatformError(
+            f"{feature} requires Windows (uses Excel COM automation via pywin32)."
+        )
+
+
+# Maps sheet name -> 0-indexed column holding that row's date. Identifies
+# which sheets in a workbook are "transaction" sheets for
+# remove_wb_dates_after_target, and where to find the date on each.
+type TransactionSheetDateColumns = dict[str, int]
+
+
+def remove_wb_dates_after_target(
+    wb_path: str,
+    target: datetime,
+    transaction_sheets: TransactionSheetDateColumns,
+) -> None:
+    """
+    Delete rows missing a date, or dated after `target`, from each sheet
+    named in `transaction_sheets`, then recalculate and save.
+
+    Uses Excel COM automation (pywin32) rather than openpyxl: openpyxl has
+    no formula engine, so it can't recalculate formulas that reference the
+    deleted rows. The original file is backed up before anything is
+    changed; on any failure the in-memory edits are discarded and the
+    original file on disk is left untouched.
+    """
+    _require_windows("Removing out-of-range transaction rows")
+
+    import win32com.client as win32
+
+    shutil.copy2(wb_path, _backup_path(wb_path))
+
+    excel = win32.Dispatch("Excel.Application")
+    excel.Visible = False
+    excel.DisplayAlerts = False
+    wb = None
+    try:
+        wb = excel.Workbooks.Open(str(Path(wb_path).resolve()))
+        for sheet_name, date_col in transaction_sheets.items():
+            _prune_sheet(wb.Sheets(sheet_name), date_col, target)
+        excel.CalculateFullRebuild()
+        wb.Save()
+    finally:
+        if wb is not None:
+            wb.Close(SaveChanges=False)
+        excel.Quit()
+
+
+def _backup_path(wb_path: str) -> Path:
+    src = Path(wb_path)
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+    return src.with_name(f"{src.stem}_backup_{stamp}{src.suffix}")
+
+
+def _prune_sheet(sheet, date_col: int, target: datetime) -> None:
+    """Delete rows (bottom-up, skipping header row 1) whose date_col cell
+    is blank or holds a date after target. Bottom-up avoids row indices
+    shifting out from under us as we delete."""
+    excel_col = date_col + 1  # Header-style 0-index -> Excel's 1-index
+    used = sheet.UsedRange
+    last_row = used.Row + used.Rows.Count - 1
+    for row in range(last_row, 1, -1):
+        value = sheet.Cells(row, excel_col).Value
+        if value is None or (isinstance(value, datetime) and value > target):
+            sheet.Rows(row).Delete()
 
 
 class CouldNotOpenFile(Exception):
