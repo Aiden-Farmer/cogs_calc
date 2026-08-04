@@ -1,7 +1,5 @@
 # Cost of Goods Sold Calculator
 
-![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/Aiden-Farmer/cogs_calc/badges/coverage-badge.json)
-
 Computes weighted-average inventory cost (AVCO) and inventory asset valuation from Excel exports (inventory on-hand + purchase/landed-cost history), and writes the result to `outfile.xlsx`.
 Pretty specific for a transitory period from excel based inventory tracking to Sellercloud adoption at the company I work for, but AbstractReader class should be extensible for pretty much any data format. 
 ## Usage
