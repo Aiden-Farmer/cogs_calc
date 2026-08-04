@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import io
 from datetime import datetime
 from decimal import Decimal
-from unittest.mock import patch
 
 import openpyxl
 import pytest
@@ -52,22 +50,19 @@ class TestGiveReader:
                 return_type=InventoryRow,
             )
 
-    def test_wires_reader_with_requested_header_and_return_type(self):
+    def test_wires_reader_with_requested_header_and_return_type(self, tmp_path):
         wb = openpyxl.Workbook()
         wb.active.title = "Inventory"
-        buf = io.BytesIO()
-        wb.save(buf)
-        buf.seek(0)
-        real_wb = openpyxl.load_workbook(buf, read_only=True, data_only=True)
+        path = tmp_path / "inventory.xlsx"
+        wb.save(path)
 
         header = Header.inventory_row(sku=0, base_sku=1, inventory=2)
-        with patch("src.data.excel.reader.xl.load_workbook", return_value=real_wb):
-            reader = give_reader(
-                file_path="inventory.xlsx",
-                sheet_name="Inventory",
-                header=header,
-                return_type=InventoryRow,
-            )
+        reader = give_reader(
+            file_path=str(path),
+            sheet_name="Inventory",
+            header=header,
+            return_type=InventoryRow,
+        )
 
         assert isinstance(reader, ExcelFileReader)
         assert reader.rt is InventoryRow

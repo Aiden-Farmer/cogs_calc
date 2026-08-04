@@ -136,3 +136,59 @@ class TestInventoryRowAllocation:
 
         assert inv_row.total_cost == cost_total_cost
         assert inv_row.average_cost == Decimal("1.5")
+
+    def test_zero_qty_purchase_is_excluded_and_does_not_change_allocation(self):
+        inv_row, cost = self._create_row_instances()
+        cost.qty = 0
+
+        inv_row.allocate_from_landed_cost(cost_row=cost)
+
+        assert inv_row.excluded_dates == [cost.date]
+        assert inv_row.unallocated == 200
+        assert inv_row.total_cost == Decimal(0)
+
+    def test_purchase_after_inventory_fully_allocated_is_excluded(self):
+        inv_row, cost = self._create_row_instances()
+        inv_row.unallocated = Decimal(0)
+
+        inv_row.allocate_from_landed_cost(cost_row=cost)
+
+        assert inv_row.excluded_dates == [cost.date]
+        assert inv_row.total_cost == Decimal(0)
+
+    def test_falls_back_to_total_cost_when_average_cost_division_is_undefined(self):
+        """Regression test: a partial allocation that leaves qty - unallocated == 0
+        used to raise decimal.InvalidOperation (DivisionUndefined) instead of falling
+        back gracefully."""
+        inv_row, cost = self._create_row_instances()
+        # Contrived state to force the qty - unallocated == 0 denominator on a
+        # partial (not full) allocation.
+        inv_row.unallocated = inv_row.qty + Decimal(5)
+        cost.qty = 5
+
+        inv_row.allocate_from_landed_cost(cost_row=cost)
+
+        assert inv_row.average_cost == inv_row.total_cost
+        assert inv_row.total_cost == Decimal(5) * cost.unit_cost
+
+    def test_export_returns_flattened_row_dict(self):
+        inv_row, cost = self._create_row_instances()
+        inv_row.allocate_from_landed_cost(cost_row=cost)
+
+        exported = inv_row.export()
+
+        assert exported["a"] == inv_row.sku
+        assert exported["b"] == inv_row.qty
+        assert exported["c"] == inv_row.unallocated
+        assert exported["d"] == cost.date.strftime("%Y-%m-%d")
+        assert exported["e"] == ""
+        assert exported["f"] == inv_row.total_cost
+        assert exported["g"] == inv_row.average_cost
+
+    def test_repr_includes_key_fields(self):
+        inv_row, _ = self._create_row_instances()
+
+        r = repr(inv_row)
+
+        assert "InventoryRow" in r
+        assert "sku" in r
