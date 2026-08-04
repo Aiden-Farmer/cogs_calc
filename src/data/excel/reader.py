@@ -22,6 +22,7 @@ T = TypeVar("T", bound="RowLike")
 
 filterwarnings("ignore", category=UserWarning, module="openpyxl")
 
+_OLE_FILE_SIG = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
 @dataclass
 class ExcelDataSource:
@@ -53,20 +54,23 @@ class ExcelFileReader(AbstractReader[T, ExcelDataSource]):
     def _initialize_data(
         self, ds: ExcelDataSource
     ) -> tuple[Workbook, ReadOnlyWorksheet]:
-        try:
+        with open(ds.wb_path, "rb") as f:
+            header = f.read(8)
+
+        if header == _OLE_FILE_SIG:
+            io_stream = self._handle_password_protected_xl(ds.wb_path)
+            if not io_stream:
+                raise CouldNotOpenFile(
+                    f"{ds.wb_path} is either not a valid xlsx or could not be decrypted",
+                )
             wb = xl.load_workbook(
-                filename=ds.wb_path,
+                filename=io_stream,
                 read_only=True,
                 data_only=True,
             )
-        except BadZipFile as e:
-            decrypted = self._handle_password_protected_xl(filename=ds.wb_path)
-            if decrypted is None:
-                raise CouldNotOpenFile(
-                    f"{ds.wb_path} is either not a valid xlsx or could not be decrypted",
-                ) from e
+        else:
             wb = xl.load_workbook(
-                filename=decrypted,
+                filename=ds.wb_path,
                 read_only=True,
                 data_only=True,
             )
