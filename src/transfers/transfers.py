@@ -8,11 +8,6 @@ from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 from src.data import DataSourceError
 
 
-class InventoryTransfer:
-    from_sku: str
-    to_sku: str
-    qty: str
-    date: datetime
 
 
 _HEADER_ROWS = {0}
@@ -21,10 +16,10 @@ _TO_SKU_COL = 1
 _TRANSFER_QTY = 2
 _TRANSFER_DATE = 3
 
-
 class TransferFileReader:
     def __init__(self, filename):
         self.wb, self.data_source = self._initialize_data(filename)
+
 
     def _iter(self, h_rows=_HEADER_ROWS) -> Iterable[tuple]:
         """Needless wrapper func?"""
@@ -54,3 +49,4 @@ class TransferFileReader:
         if save_new:
             raise NotImplementedError
         self.wb.close()
+
