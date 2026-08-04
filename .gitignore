@@ -18,3 +18,14 @@ kits.obj
 .coverage
 .coverage/*
 *.coverage
+
+# Test/lint/type-check artifacts
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Generated output files
+costs.obj
+outfile.xlsx
+old-outfile.xlsx
