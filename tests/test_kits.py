@@ -55,9 +55,9 @@ class TestKitReader(TestCase):
         )
 
         with (
-            patch("inventory_kits.reader.xl.load_workbook") as mock_load,
+            patch("src.inventory_kits.reader.xl.load_workbook") as mock_load,
             patch(
-                "inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
+                "src.inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
             ) as mock_save,
         ):
             mock_load.return_value = real_wb
@@ -80,7 +80,7 @@ class TestKitReader(TestCase):
 
         real_wb = openpyxl.load_workbook(_helper(), read_only=True, data_only=True)
         with (
-            patch("inventory_kits.reader.xl.load_workbook") as mock_load,
+            patch("src.inventory_kits.reader.xl.load_workbook") as mock_load,
         ):
             mock_load.return_value = real_wb
 
@@ -93,9 +93,9 @@ class TestKitReader(TestCase):
         )
 
         with (
-            patch("inventory_kits.reader.xl.load_workbook") as mock_load,
+            patch("src.inventory_kits.reader.xl.load_workbook") as mock_load,
             patch(
-                "inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
+                "src.inventory_kits.reader.ExcelKitReader._save_kits_to_disk"
             ) as mock_save,
         ):
             mock_load.return_value = real_wb

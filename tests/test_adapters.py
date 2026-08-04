@@ -61,7 +61,7 @@ class TestGiveReader:
         real_wb = openpyxl.load_workbook(buf, read_only=True, data_only=True)
 
         header = Header.inventory_row(sku=0, base_sku=1, inventory=2)
-        with patch("data.excel.reader.xl.load_workbook", return_value=real_wb):
+        with patch("src.data.excel.reader.xl.load_workbook", return_value=real_wb):
             reader = give_reader(
                 file_path="inventory.xlsx",
                 sheet_name="Inventory",
