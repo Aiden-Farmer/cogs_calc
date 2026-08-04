@@ -1,9 +1,7 @@
 # Cost of Goods Sold Calculator
 
 Computes weighted-average inventory cost (AVCO) and inventory asset valuation from Excel exports (inventory on-hand + purchase/landed-cost history), and writes the result to `outfile.xlsx`.
-
-Landed cost purchases must be sorted by date, descending (handled automatically by the reader).
-
+Pretty specific for a transitory period from excel based inventory tracking to Sellercloud adoption at the company I work for, but AbstractReader class should be extensible for pretty much any data format. 
 ## Usage
 
 ```sh
@@ -20,6 +18,7 @@ Rows that fail to parse (bad types, missing SKU, etc.) are skipped and reported 
 - `src/adapters.py` — I/O adapters (Excel readers, output workbook writer)
 - `src/data/` — domain model (`InventoryRow`, `LandedCostRow`) and the generic reader base
 - `src/inventory_kits/` — kit-component export handling
+- `src/transfers/` — sku to sku transfer record handler — Currently working on this.
 
 ## Development
 
