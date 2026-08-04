@@ -17,7 +17,7 @@ from src.data import (
 T = TypeVar("T", bound=RowLike)
 
 
-def give_reader(
+def give_reader(  # noqa: UP047
     file_path: str, sheet_name: str, header: Header, return_type: type[T]
 ) -> excel.Reader[T]:
     if not file_path.endswith(".xlsx"):

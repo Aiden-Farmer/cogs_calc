@@ -7,8 +7,8 @@ from typing import TypeVar
 
 from .datarows import FailedRow, LandedCostRow, RowLike
 
-kit_ref_path = Path.cwd() / "kits.obj"
-cost_ref_path = Path.cwd() / "costs.obj"
+kit_ref_path = Path.cwd() / "private" / "kits.obj"
+cost_ref_path = Path.cwd() / "private" / "costs.obj"
 
 try:
     with open(kit_ref_path, "rb") as fd:
@@ -77,7 +77,10 @@ def component_cost_allocation(
 T = TypeVar("T", bound="RowLike")
 
 
-def split_kits(
+def split_kits( # noqa: UP047 
+        # https://docs.astral.sh/ruff/rules/non-pep695-generic-class/
+        # This rule can only offer a fix if all of the generic types in the class definition are defined in the current module. 
+        # For external type parameters, a diagnostic is emitted without a suggested fix.
     func: Callable[..., Iterator[T | FailedRow]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
 ) -> Callable[..., Iterator[T | FailedRow]]:
 
