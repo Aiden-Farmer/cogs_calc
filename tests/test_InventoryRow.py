@@ -5,10 +5,7 @@ from decimal import Decimal
 from typing import Any
 from unittest.mock import MagicMock
 
-from data import Header
-from data import InventoryRow
-from data import LandedCostRow
-from data import FailedRow
+from data import FailedRow, Header, InventoryRow, LandedCostRow
 
 
 class TestInventoryRowConstructor:
@@ -21,7 +18,7 @@ class TestInventoryRowConstructor:
     """
 
     def test_inventory_row_from_row_constructor(self):
-        h = Header.inventory_row(0, 1, 2)
+        h = Header.inventory_row(sku=0, base_sku=1, inventory=2)
         # row can be any object that implements __getitem__?
         raw: list[Any] = [0, 0, 0]
         raw[0] = "test_sku"
@@ -80,7 +77,7 @@ class TestInventoryRowAllocation:
         cost = MagicMock(spec=LandedCostRow)
         cost.sku = "sku"
         cost.qty = 100
-        cost.unit_cost = Decimal("1")
+        cost.unit_cost = Decimal(1)
         cost.date = datetime(2020, 12, 20)
 
         raw = []
@@ -131,11 +128,11 @@ class TestInventoryRowAllocation:
         inv_row, cost = self._create_row_instances()
 
         inv_row.allocate_from_landed_cost(cost)
-        cost.unit_cost = Decimal("2")
+        cost.unit_cost = Decimal(2)
         inv_row.allocate_from_landed_cost(cost)
 
         # Original cost Mock had unit cost=1, 100qty
-        cost_total_cost = Decimal("300")
+        cost_total_cost = Decimal(300)
 
         assert inv_row.total_cost == cost_total_cost
         assert inv_row.average_cost == Decimal("1.5")

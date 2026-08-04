@@ -1,17 +1,10 @@
 from __future__ import annotations
 
-from abc import ABC
-from abc import abstractmethod
-from collections.abc import Iterator
-from collections.abc import Iterable
-from typing import Any
-from typing import Generic
-from typing import TypeVar
+from abc import ABC, abstractmethod
+from collections.abc import Iterable, Iterator
+from typing import Any, Generic, TypeVar
 
-from data.datarows import Header
-from data.datarows import FailedRow
-from data.datarows import RowLike
-
+from data.datarows import FailedRow, Header, RowLike
 
 T = TypeVar("T", bound="RowLike")
 DS = TypeVar("DS")
@@ -60,7 +53,6 @@ class AbstractReader(ABC, Generic[T, DS]):
 
     def close(self) -> None:
         """Default no-op; override where teardown needed."""
-        pass
 
 
 class RowLikeConfigError(Exception):

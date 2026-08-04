@@ -4,7 +4,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from data import LandedCostRow, Header, FailedRow
+from data import FailedRow, Header, LandedCostRow
 
 
 class TestLandedCostRowConstructor:
@@ -12,7 +12,7 @@ class TestLandedCostRowConstructor:
         data: list[Any] = [None for i in range(20)]
         data[0] = "sku"
         data[2] = 200
-        data[3] = float(2.0)
+        data[3] = 2.0
         data[4] = datetime.min
         self.data = data
 

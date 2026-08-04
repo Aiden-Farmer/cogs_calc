@@ -1,26 +1,22 @@
 from __future__ import annotations
 
 import io
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
+from datetime import datetime
 from getpass import getpass
 from typing import TypeVar
+from warnings import filterwarnings
 from zipfile import BadZipFile
-from datetime import datetime
 
 import msoffcrypto
 import openpyxl as xl
 from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
-from warnings import filterwarnings
-
-from typing import Iterable
 
 from ..datarow_mutation_utils import split_kits
 from ..datarows import RowLike
-from ..reader import AbstractReader
-from ..reader import Header
-from ..reader import FailedRow
+from ..reader import AbstractReader, FailedRow, Header
 
 T = TypeVar("T", bound="RowLike")
 
