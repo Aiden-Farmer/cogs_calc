@@ -1,11 +1,11 @@
 import os
+from collections.abc import Callable, Iterator
 from copy import copy
 from decimal import Decimal
-from typing import Callable, Iterator, TypeVar
-
-from .datarows import RowLike, LandedCostRow, FailedRow
-
 from pickle import loads
+from typing import TypeVar
+
+from .datarows import FailedRow, LandedCostRow, RowLike
 
 # TODO windows specific here, figure out a non-hacky path maniuplation to get expected kits.obj location for kit_ref
 cwd = os.getcwd()

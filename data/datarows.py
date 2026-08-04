@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from abc import ABC
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from collections.abc import Sequence
-from datetime import datetime as dt
-from decimal import Decimal, InvalidOperation, DivisionByZero
-from typing import Any
-from typing import Self
-
 from dataclasses import dataclass
-from typeguard import typechecked
+from datetime import datetime as dt
+from decimal import Decimal, DivisionByZero, InvalidOperation
+from typing import Any, Self
 
+from typeguard import typechecked
 
 _INVALID_SKU_CHAR = {
     " ",
@@ -26,9 +23,6 @@ class RowLike(ABC):
     @classmethod
     @abstractmethod
     def from_row(cls, row: Sequence[Any], header: Header) -> Self | FailedRow: ...
-
-    def allocate_from_landed_cost(self, cost_row):
-        raise NotImplementedError("Optional method.")
 
 
 class LandedCostRow(RowLike):
