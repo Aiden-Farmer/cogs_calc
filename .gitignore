@@ -16,3 +16,5 @@ wheels/
 private/*
 kits.obj
 .coverage
+.coverage/*
+*.coverage
