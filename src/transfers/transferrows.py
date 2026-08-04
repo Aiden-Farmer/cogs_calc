@@ -1,13 +1,14 @@
-from typing import Sequence, Any, Self
+from collections.abc import Sequence
 from datetime import datetime as dt
-from decimal import Decimal
-from data.datarows import RowLike, FailedRow
-from data.datarows import Header
-from decimal import InvalidOperation
+from decimal import Decimal, InvalidOperation
+from typing import Any, Self
+
+from data.datarows import FailedRow, Header, RowLike
 
 _DATE_FORMAT = "%m-%d--%Y %I:%M:%S %p"
 
 Header.transfer_row(from_sku=1, to_sku=2, qty=4, date=3, date_format=_DATE_FORMAT)
+
 
 class InventoryTransfer(RowLike):
     def __init__(self, row: TransferDTO):
@@ -22,7 +23,6 @@ class InventoryTransfer(RowLike):
         if isinstance(dto, FailedRow):
             return dto
         return cls(dto)
-
 
 
 class TransferDTO:
@@ -69,7 +69,6 @@ class TransferDTO:
                     context=f"Date value {date} exists but is incompatible with {header.date_format}",
                 )
 
-
         dto.to_sku = to_sku
         dto.from_sku = from_sku
         dto.qty = qty
@@ -79,5 +78,5 @@ class TransferDTO:
             return FailedRow(
                 row=row, error=ValueError(), context="incomplete data in row."
             )
-        
+
         return dto

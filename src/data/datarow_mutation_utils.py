@@ -77,11 +77,13 @@ def component_cost_allocation(
 T = TypeVar("T", bound="RowLike")
 
 
-def split_kits( # noqa: UP047 
-        # https://docs.astral.sh/ruff/rules/non-pep695-generic-class/
-        # This rule can only offer a fix if all of the generic types in the class definition are defined in the current module. 
-        # For external type parameters, a diagnostic is emitted without a suggested fix.
-    func: Callable[..., Iterator[T | FailedRow]], kit_ref=kit_ref, ALLOCATE_COMP_COST=0
+def split_kits(  # noqa: UP047
+    # https://docs.astral.sh/ruff/rules/non-pep695-generic-class/
+    # This rule can only offer a fix if all of the generic types in the class definition are defined in the current module.
+    # For external type parameters, a diagnostic is emitted without a suggested fix.
+    func: Callable[..., Iterator[T | FailedRow]],
+    kit_ref=kit_ref,
+    ALLOCATE_COMP_COST=0,
 ) -> Callable[..., Iterator[T | FailedRow]]:
 
     def wrapper(*args, **kwargs) -> Iterator[T]:
