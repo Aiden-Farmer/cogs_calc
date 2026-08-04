@@ -5,9 +5,9 @@
 Computes weighted-average inventory cost (AVCO) and inventory asset valuation from Excel exports (inventory on-hand + purchase/landed-cost history), and writes the result to `outfile.xlsx`.
 Pretty specific for a transitory period from excel based inventory tracking to Sellercloud adoption at the company I work for, but AbstractReader class should be extensible for pretty much any data format. 
 ## Usage
-
+Put inventory and Purchase files in cogs_calc/private/ folder, or point program at correct location with --purchase-file [-p] and --inventory-file [-i] flags.
 ```sh
-uv run main.py -i private/inventory.xlsx -p "private/landed cost.xlsx"
+uv run main.py
 ```
 
 Optional flags: `--inventory-sheet-name`, `--purchases-sheet-name` (worksheet names within those files), and `--kit-upload <file>` to load a Sellercloud kit-component export before the calculation, so kit purchases/inventory get split across their components.
