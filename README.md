@@ -1,4 +1,4 @@
-# cogs-calc
+# Cost of Goods Sold Calculator
 
 Computes weighted-average inventory cost (AVCO) and inventory asset valuation from Excel exports (inventory on-hand + purchase/landed-cost history), and writes the result to `outfile.xlsx`.
 
