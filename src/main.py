@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import argparse
 
-from adapters import allocate_landed_costs, build_inventory, give_reader, write_outfile
-from data import FailedRow, Header, InventoryRow, LandedCostRow
-from inventory_kits.reader import ExcelKitReader
+from src.adapters import (
+    allocate_landed_costs,
+    build_inventory,
+    give_reader,
+    write_outfile,
+)
+from src.data import FailedRow, Header, InventoryRow, LandedCostRow
+from src.inventory_kits.reader import ExcelKitReader
 
 _FAILED_INVENTORY_ROWS: list[FailedRow] = []
 _FAILED_PURCHASE_ROWS: list[FailedRow] = []
