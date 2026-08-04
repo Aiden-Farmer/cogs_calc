@@ -1,16 +1,14 @@
-import os
 from collections.abc import Callable, Iterator
 from copy import copy
 from decimal import Decimal
+from pathlib import Path
 from pickle import loads
 from typing import TypeVar
 
 from .datarows import FailedRow, LandedCostRow, RowLike
 
-# TODO windows specific here, figure out a non-hacky path maniuplation to get expected kits.obj location for kit_ref
-cwd = os.getcwd()
-kit_ref_path = cwd + "\\kits.obj"
-cost_ref_path = cwd + "\\costs.obj"
+kit_ref_path = Path.cwd() / "kits.obj"
+cost_ref_path = Path.cwd() / "costs.obj"
 
 try:
     with open(kit_ref_path, "rb") as fd:
