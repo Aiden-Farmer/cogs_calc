@@ -5,9 +5,14 @@ import openpyxl as xl
 from tqdm import tqdm
 
 from src.data import (
+    DataSourceError,
+    FailedRow,
+    Header,
+    InventoryRow,
+    LandedCostRow,
+    RowLike,
     excel,
 )
-from src.data import DataSourceError, FailedRow, Header, InventoryRow, LandedCostRow, RowLike
 
 T = TypeVar("T", bound=RowLike)
 
