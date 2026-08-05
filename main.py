@@ -14,8 +14,18 @@ from src.inventory_kits.reader import ExcelKitReader
 _FAILED_INVENTORY_ROWS: list[FailedRow] = []
 _FAILED_PURCHASE_ROWS: list[FailedRow] = []
 
-_INV_HEADER = Header.inventory_row(sku=2, base_sku=3, inventory=30)
-_PURCHASE_HEADER = Header.landed_cost(sku=6, qty=8, unit_cost=20, date=5)
+_INV_HEADER = Header.inventory_row(
+    sku=2, 
+    base_sku=3, 
+    inventory=30
+)
+
+_PURCHASE_HEADER = Header.landed_cost(
+    sku=6, 
+    qty=8, 
+    unit_cost=20, 
+    date=5
+)
 
 
 def calculate_all_lineitems_average_cost_from_excel(
@@ -46,6 +56,7 @@ def calculate_all_lineitems_average_cost_from_excel(
 
     write_outfile(inventory)
 
+    #TODO log failures instead of stdout
     for record in _FAILED_INVENTORY_ROWS:
         print(record.row, ", ", record.context)
 
@@ -63,6 +74,7 @@ def main() -> None:
         help='Inventory file sheetname to be used in inventory calculation, defaults to "Inventory ". ',
         default="Inventory",
     )
+
     parser.add_argument(
         "--purchases-sheet-name",
         help='purchases file sheetname to be provide purchase history, defaults to "Purchases".',
@@ -75,7 +87,11 @@ def main() -> None:
         default="private/landed cost.xlsx",
     )
 
-    parser.add_argument("--inventory-file", "-i", default="private/inventory.xlsx")
+    parser.add_argument(
+        "--inventory-file",
+        "-i",
+        default="private/inventory.xlsx"
+    )
 
     parser.add_argument(
         "--kit-upload",

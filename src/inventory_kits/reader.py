@@ -21,7 +21,7 @@ _KIT_QTY_COL = 2
 _UNIT_COST_COL = 11
 
 
-class ExcelKitReader(AbstractReader):
+class ExcelKitReader:
     def __init__(self, filename: str):
         self.wb, self.data_source = self._initialize_data(filename)
         self.kits: dict[str, dict[str, dict]] = defaultdict(dict)

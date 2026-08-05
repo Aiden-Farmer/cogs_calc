@@ -39,7 +39,6 @@ class TransferDTO:
             to_sku = str(row[header.sku])
             qty = Decimal(row[header.qty])
             date: dt | str = row[header.date]
-
         except (ValueError, InvalidOperation, TypeError) as e:
             return FailedRow(
                 row=row,
