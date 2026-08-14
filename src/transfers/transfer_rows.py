@@ -10,7 +10,7 @@ _DATE_FORMAT = "%m-%d--%Y %I:%M:%S %p"
 Header.transfer_row(from_sku=1, to_sku=2, qty=4, date=3, date_format=_DATE_FORMAT)
 
 
-class InventoryTransfer(RowLike):
+class TransferRow(RowLike):
     def __init__(self, row: TransferDTO):
         self.from_sku: str = row.from_sku
         self.to_sku: str = row.to_sku

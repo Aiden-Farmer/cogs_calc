@@ -6,6 +6,7 @@ from src.adapters import (
     allocate_landed_costs,
     build_inventory,
     give_reader,
+    give_transfer_reader,
     write_outfile,
 )
 from src.data import FailedRow, Header, InventoryRow, LandedCostRow
@@ -13,6 +14,7 @@ from src.inventory_kits.reader import ExcelKitReader
 
 _FAILED_INVENTORY_ROWS: list[FailedRow] = []
 _FAILED_PURCHASE_ROWS: list[FailedRow] = []
+_FAILED_TRANSFER_ROWS: list[FailedRow] = []
 
 _INV_HEADER = Header.inventory_row(
     sku=2, 
@@ -27,12 +29,22 @@ _PURCHASE_HEADER = Header.landed_cost(
     date=5
 )
 
+_TRANSFER_HEADER = Header.transfer_row(
+    from_sku = 0,
+    to_sku = 1,
+    qty = 2,
+    date = 3,
+    date_format = "YYYY-MM-DD",
+)
+
 
 def calculate_all_lineitems_average_cost_from_excel(
     inventory_file_path: str,
     landed_cost_file_path: str,
     inventory_sheet_name: str,
     landed_cost_sheet_name: str,
+    transfer_file_path: str,
+    transfer_sheet_name: str,
 ):
     inv_reader = give_reader(
         file_path=inventory_file_path,
@@ -40,6 +52,9 @@ def calculate_all_lineitems_average_cost_from_excel(
         header=_INV_HEADER,
         return_type=InventoryRow,
     )
+
+    
+    transfer_reader = give_transfer_reader(file_path = transfer_file_path, sheet_name = transfer_sheet_name, header = _TRANSFER_HEADER)
 
     cost_reader = give_reader(
         file_path=landed_cost_file_path,
@@ -51,7 +66,10 @@ def calculate_all_lineitems_average_cost_from_excel(
     inventory, failed_inventory_rows = build_inventory(inv_reader)
     _FAILED_INVENTORY_ROWS.extend(failed_inventory_rows)
 
-    failed_purchase_rows = allocate_landed_costs(cost_reader, inventory)
+    transfers, failed_transfer_rows = build_transfers(transfer_reader)
+    _FAILED_TRANSFER_ROWS.extend(failed_transfer_rows)
+
+    failed_purchase_rows = allocate_landed_costs(cost_reader, inventory, transfers)
     _FAILED_PURCHASE_ROWS.extend(failed_purchase_rows)
 
     write_outfile(inventory)
@@ -94,6 +112,17 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--transfer-file",
+        "-t",
+        default = "private/transfers.xlsx"
+    )
+
+    parser.add_argument(
+        "--transfer-sheet-name",
+        default = "Sheet1"
+    )
+
+    parser.add_argument(
         "--kit-upload",
         help=" Upload a kit file to split purchases and inventory into kit components.",
     )
@@ -110,6 +139,8 @@ def main() -> None:
         landed_cost_sheet_name=args.purchases_sheet_name,
         inventory_file_path=args.inventory_file,
         inventory_sheet_name=args.inventory_sheet_name,
+        transfer_file_path = args.transfer_file,
+        transfer_sheet_name = args.transfer_sheet_name,
     )
 
 

@@ -14,6 +14,9 @@ from src.data import (
     excel,
 )
 
+from src.transfers.transfer_rows import TransferRow
+from src.transfers.reader import TransferFileReader
+
 T = TypeVar("T", bound=RowLike)
 
 
@@ -27,6 +30,16 @@ def give_reader(  # noqa: UP047
         )
     data_source = excel.Source(file_path, sheet_name)
     return excel.Reader(data_source, header, return_type)
+
+def give_transfer_reader( 
+    file_path: str, sheet_name: str, header: Header
+) -> TransferFileReader:
+
+    assert sheet_name
+    if not file_path.endswith(".xlsx"):
+        raise TypeError()
+
+    return TransferFileReader(filename = file_path, header = header) 
 
 
 def build_inventory(
@@ -54,14 +67,38 @@ def build_inventory(
 
 
 def allocate_landed_costs(
-    cost_reader: excel.Reader[LandedCostRow], inventory: dict[str, InventoryRow]
+        cost_reader: excel.Reader[LandedCostRow], inventory: dict[str, InventoryRow], transfers: dict[str, TransferRow]
 ) -> list[FailedRow]:
+
+    def _allocator(cost_row: LandedCostRow, inventory: dict[str, InventoryRow], transfers: dict[str, TransferRow]
+) -> None:
+        if cost_row.sku in transfers:
+            transfer_row = transfers[cost_row.sku]
+            if inventory[transfer_row.from_sku].unallocated != 0:
+                inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+            
+            elif inventory[transfer_row.from_sku].unallocated == 0:
+                target_row = inventory[transfer_row.to_sku]
+                if cost_row.qty > transfer_row.qty:
+                    cost_row.qty = transfer_row.qty
+                target_row.allocate_from_landed_cost(cost_row)
+
+                transfer_row.qty -=  
+                
+
+        inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+
+
+
+
     failed_rows: list[FailedRow] = []
     for cost_row in tqdm(cost_reader.readline(), desc="Reading purchase records"):
         if isinstance(cost_row, FailedRow):
             failed_rows.append(cost_row)
             continue
-        if cost_row.sku not in inventory:
+
+
+        if cost_row.sku not in inventory or cost_row.sku not in transfers:
             failed_rows.append(
                 FailedRow(
                     row=cost_row,
@@ -70,7 +107,8 @@ def allocate_landed_costs(
                 )
             )
             continue
-        inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+
+        _allocator(cost_row, inventory,transfers)
 
     return failed_rows
 
