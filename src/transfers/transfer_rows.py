@@ -4,7 +4,7 @@ from datetime import datetime as dt
 from decimal import Decimal, InvalidOperation
 from typing import Any, Self
 
-from data.datarows import FailedRow, Header, RowLike
+from ..data.datarows import FailedRow, Header, RowLike
 
 _DATE_FORMAT = "%m-%d--%Y %I:%M:%S %p"
 _USER_TZ = UTC

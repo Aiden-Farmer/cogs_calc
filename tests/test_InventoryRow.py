@@ -6,6 +6,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 from src.data import FailedRow, Header, InventoryRow, LandedCostRow
+from src.data.datarows import SalesData 
 
 
 class TestInventoryRowConstructor:
@@ -136,6 +137,24 @@ class TestInventoryRowAllocation:
         cost_total_cost = cost_row.unit_cost * cost_row.qty
         assert inv_row.total_cost == cost_total_cost
         assert inv_row.average_cost == cost_row.unit_cost
+
+
+    def test_sales_data_can_be_written_to_inv_row(self):
+        inv_row, cost = self._create_row_instances()
+        inv_row.sales.total_sales += 10
+        inv_row.sales.sales_qty["Amazon"] += 10 
+        inv_row.allocate_from_landed_cost(cost)
+        inv_row.allocate_from_landed_cost(cost)
+
+        cost.unit_cost = Decimal(5)
+        cost.qty = 10
+
+        inv_row.allocate_from_landed_cost(cost)
+
+        assert inv_row.sales.total_cost == Decimal(50)
+        assert inv_row.sales.allocated_sales == 10
+
+
 
     def test_allocations_with_different_costs_impact_avco_proportional_to_units_allocated(
         self,

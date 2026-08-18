@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -50,7 +50,7 @@ class TestLandedCostRowConstructor:
         lc = LandedCostRow.from_row(self.data, h)
 
         assert isinstance(lc, LandedCostRow)
-        assert lc.date == datetime(year=2020, month=12, day=31)
+        assert lc.date == datetime(year=2020, month=12, day=31).astimezone(UTC)
 
     def test_constructor_yields_failedrow_on_incompatible_types(self):
         self._create_data()

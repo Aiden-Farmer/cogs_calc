@@ -42,9 +42,11 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
                 landed_cost_sheet_name="Purchases",
             )
 
+        transfers = {}
+
         assert mock_give_reader.call_count == 2
         mock_build_inventory.assert_called_once_with(inv_reader)
-        mock_allocate.assert_called_once_with(cost_reader, inventory)
+        mock_allocate.assert_called_once_with(cost_reader, inventory, transfers)
         mock_write_outfile.assert_called_once_with(inventory)
 
     def test_accumulates_failed_rows_into_module_level_lists(self):
@@ -92,11 +94,14 @@ class TestMainCli:
         ):
             main()
 
+        transfers = {}
+
         mock_calc.assert_called_once_with(
             landed_cost_file_path="cost.xlsx",
             landed_cost_sheet_name="PURCHASES",
             inventory_file_path="inv.xlsx",
             inventory_sheet_name="Inventory",
+            transfers=transfers,
         )
 
     def test_kit_upload_flag_processes_kit_file_before_calculation(self):

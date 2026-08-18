@@ -75,6 +75,8 @@ class InventoryRow(RowLike):
         self.total_cost: Decimal = Decimal(0)
         self.average_cost: Decimal | None = None
 
+        self.sales = SalesData()
+
     @typechecked
     @classmethod
     def from_row(cls, row, header: Header) -> InventoryRow | FailedRow:
@@ -110,9 +112,10 @@ class InventoryRow(RowLike):
             return
 
         if self.unallocated == 0:
-            self.excluded_dates.append(cost_row.date)
+            if not self.sales_value(cost_row):
+                self.excluded_dates.append(cost_row.date)
             return
-
+            
         elif cost_row.qty >= self.unallocated:
             self.total_cost += self.unallocated * cost_row.unit_cost
             self.average_cost = self.total_cost / self.qty
@@ -129,6 +132,27 @@ class InventoryRow(RowLike):
                 print("issue:", self.qty, cost_row.qty, self.unallocated, self.sku)
                 self.average_cost = self.total_cost
             self.purchase_dates.append(cost_row.date)
+
+
+    def sales_value(self, cost_row):
+        if (unallocated := (self.sales.total_sales - self.sales.allocated_sales)) <= 0:
+            return False
+        self.sales.total_cost += cost_row.unit_cost * min(unallocated, cost_row.qty)
+        self.sales.allocated_sales += min(unallocated, cost_row.qty)
+
+            # Last sale data needed, distrubute costs of sales to channels.
+        if self.sales.allocated_sales == self.sales.total_sales:
+            unit_cost = Decimal(self.sales.total_cost / self.sales.allocated_sales) 
+            for channel, qty in self.sales.sales_qty.items():
+                self.sales.sales_value[channel] = unit_cost * qty    
+
+    def record_sale(self, channel: str, qty: int):
+        if channel not in self.sales:
+            print("%s missing from SalesData defined channels")
+            return
+        self.sales.sales_qty[channel] += qty
+        self.sales.total_sales += qty
+ 
 
     def __repr__(self) -> str:
         return (
@@ -193,7 +217,7 @@ class Header:
 
     @classmethod
     def transfer_row(cls, to_sku, from_sku, qty, date, date_format) -> Header:
-        """Creates a Header isntacne with all necessary LandedCostRow mappings."""
+        """Creates a Header instance with all necessary LandedCostRow mappings."""
 
         h = Header()
         h.sku = to_sku
@@ -297,3 +321,25 @@ class LandedCostDTO:
                 row=row, error=ValueError(), context="incomplete data in row."
             )
         return dto
+
+
+
+class SalesData:
+    def __init__(self):
+        self.sales_qty = {
+            "Amazon": 0,
+            "eBay": 0,
+            "Etsy": 0,
+            "Houzz": 0,
+            "Shopify": 0,
+            "Walmart": 0,
+            "Wayfair": 0,
+        }
+
+        self.sales_value = {}
+
+        self.total_sales = 0
+        self.allocated_sales = 0
+        self.total_cost = 0
+    
+     
