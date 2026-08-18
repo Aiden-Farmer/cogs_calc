@@ -3,12 +3,14 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC
 from datetime import datetime as dt
 from decimal import Decimal, DivisionByZero, InvalidOperation
 from typing import Any, Self
 
 from typeguard import typechecked
 
+_USER_TZ = UTC
 _INVALID_SKU_CHAR = {
     " ",
 }
@@ -281,7 +283,7 @@ class LandedCostDTO:
 
         if not isinstance(date, dt):
             try:
-                date = dt.strptime(date, header.date_format)  # noqa: dtz007 File does not provide tzinfo.
+                date = dt.strptime(date, header.date_format).astimezone(_USER_TZ)  # noqa: dtz007 File does not provide tzinfo.
             except ValueError:
                 return FailedRow(
                     row=row,

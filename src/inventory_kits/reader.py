@@ -8,7 +8,6 @@ from openpyxl.workbook.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
 from src.data import DataSourceError
-from src.data.reader import AbstractReader
 
 # Row locations, specific to sellercloud's standard kit export file format
 # so I'm not bothering with an easily user-changeable config.

@@ -5,7 +5,8 @@ from openpyxl.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
 from src.data import DataSourceError, FailedRow, Header
-from .transfer_rows import TransferRow 
+
+from .transfer_rows import TransferRow
 
 _HEADER_ROWS = {0}
 

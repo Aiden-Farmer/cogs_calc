@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import UTC
 from datetime import datetime as dt
 from decimal import Decimal, InvalidOperation
 from typing import Any, Self
@@ -6,6 +7,7 @@ from typing import Any, Self
 from data.datarows import FailedRow, Header, RowLike
 
 _DATE_FORMAT = "%m-%d--%Y %I:%M:%S %p"
+_USER_TZ = UTC
 
 Header.transfer_row(from_sku=1, to_sku=2, qty=4, date=3, date_format=_DATE_FORMAT)
 
@@ -60,7 +62,7 @@ class TransferDTO:
 
         if not isinstance(date, dt):
             try:
-                date = dt.strptime(date, header.date_format)
+                date = dt.strptime(date, header.date_format).astimezone(_USER_TZ)
             except ValueError:
                 return FailedRow(
                     row=row,
