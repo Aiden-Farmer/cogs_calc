@@ -10,6 +10,7 @@ from .transfer_rows import TransferRow
 
 _HEADER_ROWS = {0}
 
+
 class TransferFileReader:
     def __init__(self, filename, header: Header):
         self.header = header
@@ -17,12 +18,10 @@ class TransferFileReader:
 
     def readline(self) -> Iterable[TransferRow | FailedRow]:
         for raw in self._iter():
-            yield TransferRow.from_row(raw, header = self.header)
-
+            yield TransferRow.from_row(raw, header=self.header)
 
     def _iter(self, h_rows=_HEADER_ROWS) -> Iterable[tuple]:
-        """Needless wrapper func?"""
-        """ Abstracts reading records so readline can call a method of just data, 
+        """Abstracts reading records so readline can call a method of just data,
         and not worry about shape"""
 
         for i, raw in enumerate(self.data_source.iter_rows(values_only=True)):

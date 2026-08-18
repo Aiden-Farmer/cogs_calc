@@ -13,9 +13,8 @@ from src.data import (
     RowLike,
     excel,
 )
-
-from src.transfers.transfer_rows import TransferRow
 from src.transfers.reader import TransferFileReader
+from src.transfers.transfer_rows import TransferRow
 
 T = TypeVar("T", bound=RowLike)
 
@@ -31,7 +30,8 @@ def give_reader(  # noqa: UP047
     data_source = excel.Source(file_path, sheet_name)
     return excel.Reader(data_source, header, return_type)
 
-def give_transfer_reader( 
+
+def give_transfer_reader(
     file_path: str, sheet_name: str, header: Header
 ) -> TransferFileReader:
 
@@ -39,7 +39,7 @@ def give_transfer_reader(
     if not file_path.endswith(".xlsx"):
         raise TypeError()
 
-    return TransferFileReader(filename = file_path, header = header) 
+    return TransferFileReader(filename=file_path, header=header)
 
 
 def build_inventory(
@@ -66,30 +66,59 @@ def build_inventory(
     return inventory, failed_rows
 
 
+def build_transfers(
+    trans_reader: TransferFileReader,
+) -> tuple[dict[str, TransferRow], list[FailedRow]]:
+    transfers: dict[str, TransferRow] = {}
+    failed_rows: list[FailedRow] = []
+
+    for trans_row in tqdm(trans_reader.readline(), desc="Building Transfer dictionary"):
+        if isinstance(trans_row, FailedRow):
+            failed_rows.append(trans_row)
+            continue
+
+        elif trans_row.from_sku in transfers:
+            if trans_row.to_sku != transfers[trans_row.to_sku]:
+                raise DataSourceError(
+                    "Transfer of sku %s to %s already has existing transfer to other sku %s.",
+                    trans_row.from_sku,
+                    trans_row.to_sku,
+                    transfers[trans_row.from_sku].to_sku,
+                )
+
+            transfers[trans_row.from_sku].qty += trans_row.qty
+        else:
+            transfers[trans_row.from_sku] = trans_row
+
+    return transfers, failed_rows
+
+
 def allocate_landed_costs(
-        cost_reader: excel.Reader[LandedCostRow], inventory: dict[str, InventoryRow], transfers: dict[str, TransferRow]
+    cost_reader: excel.Reader[LandedCostRow],
+    inventory: dict[str, InventoryRow],
+    transfers: dict[str, TransferRow] | None = None,
 ) -> list[FailedRow]:
 
-    def _allocator(cost_row: LandedCostRow, inventory: dict[str, InventoryRow], transfers: dict[str, TransferRow]
-) -> None:
+    def _allocator(
+        cost_row: LandedCostRow,
+        inventory: dict[str, InventoryRow],
+        transfers: dict[str, TransferRow],
+    ) -> None:
         if cost_row.sku in transfers:
             transfer_row = transfers[cost_row.sku]
             if inventory[transfer_row.from_sku].unallocated != 0:
                 inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
-            
+
             elif inventory[transfer_row.from_sku].unallocated == 0:
                 target_row = inventory[transfer_row.to_sku]
-                if cost_row.qty > transfer_row.qty:
-                    cost_row.qty = transfer_row.qty
+                cost_row.qty = min(cost_row.qty, transfer_row.qty)
                 target_row.allocate_from_landed_cost(cost_row)
 
-                transfer_row.qty -=  
-                
+                transfer_row.qty -= cost_row.qty
+                if transfer_row.qty == 0:
+                    del transfers[cost_row.sku]
 
         inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
-
-
-
 
     failed_rows: list[FailedRow] = []
     for cost_row in tqdm(cost_reader.readline(), desc="Reading purchase records"):
@@ -97,8 +126,7 @@ def allocate_landed_costs(
             failed_rows.append(cost_row)
             continue
 
-
-        if cost_row.sku not in inventory or cost_row.sku not in transfers:
+        if cost_row.sku not in inventory:
             failed_rows.append(
                 FailedRow(
                     row=cost_row,
@@ -108,7 +136,9 @@ def allocate_landed_costs(
             )
             continue
 
-        _allocator(cost_row, inventory,transfers)
+        if not transfers:
+            transfers = {}
+        _allocator(cost_row, inventory, transfers)
 
     return failed_rows
 
