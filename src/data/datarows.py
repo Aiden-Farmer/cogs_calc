@@ -57,6 +57,30 @@ class LandedCostRow(RowLike):
         return row.date
 
 
+class SalesRow(RowLike):
+    """
+    A single sale record: units of a sku sold through one channel.
+    """
+
+    must_sort = False
+
+    def __init__(self, row: SalesDTO) -> None:
+        self.sku: str = row.sku
+        self.channel: str = row.channel
+        self.qty: Decimal = row.qty
+
+    def __repr__(self) -> str:
+        return f"SalesRow(sku={self.sku!r}, channel={self.channel!r}, qty={self.qty!r})"
+
+    @classmethod
+    def from_row(cls, row, header) -> SalesRow | FailedRow:
+        dto = SalesDTO.sanitize(row, header)
+        if isinstance(dto, FailedRow):
+            return dto
+
+        return cls(dto)
+
+
 class InventoryRow(RowLike):
     """
     An inventory item with quantity and allocated quantity. Has no time-awareness.
@@ -76,9 +100,9 @@ class InventoryRow(RowLike):
         self.average_cost: Decimal | None = None
 
         self.sales = SalesData()
-
-    @typechecked
+    
     @classmethod
+    @typechecked # I do not believe this works as intended, see https://typeguard.readthedocs.io/en/latest/userguide.html#using-the-decorator. This method does not have meaningful type annotations.
     def from_row(cls, row, header: Header) -> InventoryRow | FailedRow:
         dto = InventoryDTO.sanitize(row, header)
         if isinstance(dto, FailedRow):
@@ -147,8 +171,8 @@ class InventoryRow(RowLike):
                 self.sales.sales_value[channel] = unit_cost * qty    
 
     def record_sale(self, channel: str, qty: int):
-        if channel not in self.sales:
-            print("%s missing from SalesData defined channels")
+        if channel not in self.sales.sales_qty:
+            print("%s missing from SalesData defined channels", channel)
             return
         self.sales.sales_qty[channel] += qty
         self.sales.total_sales += qty
@@ -185,6 +209,8 @@ class Header:
     unit_cost: int
     date: int
     date_format: str
+    as_of_date: dt | None = None
+    channel: int
 
     @classmethod
     def landed_cost(
@@ -194,6 +220,7 @@ class Header:
         unit_cost,
         date,
         date_format="%Y-%m-%d",
+        as_of_date: dt | None = None,
     ) -> Header:
         """Creates a Header instance with all necessary LandedCostRow mappings."""
 
@@ -203,6 +230,7 @@ class Header:
         h.unit_cost = unit_cost
         h.date = date
         h.date_format = date_format
+        h.as_of_date = as_of_date
         return h
 
     @classmethod
@@ -225,6 +253,16 @@ class Header:
         h.qty = qty
         h.date = date
         h.date_format = date_format
+        return h
+
+    @classmethod
+    def sales_row(cls, sku, channel, qty) -> Header:
+        """Creates a Header instance with all necessary SalesRow mappings."""
+
+        h = Header()
+        h.sku = sku
+        h.channel = channel
+        h.qty = qty
         return h
 
     def __repr__(self):
@@ -307,13 +345,25 @@ class LandedCostDTO:
 
         if not isinstance(date, dt):
             try:
-                date = dt.strptime(date, header.date_format).astimezone(_USER_TZ)  # noqa: dtz007 File does not provide tzinfo.
+                date = dt.strptime(date, header.date_format)  # noqa: DTZ007 -- stamped with _USER_TZ below rather than assumed local.
             except ValueError:
                 return FailedRow(
                     row=row,
                     error=TypeError(),
                     context=f"Date value exists but is incompatible with {header.date_format}",
                 )
+
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=_USER_TZ)
+
+        if header.as_of_date and date > header.as_of_date:
+            context = (
+                f"Purchase dated {date:%Y-%m-%d} is after "
+                f"as_of_date {header.as_of_date:%Y-%m-%d}; excluded."
+            )
+            print(context, row)
+            return FailedRow(row=row, error=ValueError(), context=context)
+
         dto.date = date
 
         if not all(vars(dto).values()):
@@ -322,6 +372,42 @@ class LandedCostDTO:
             )
         return dto
 
+
+class SalesDTO:
+    sku: str
+    channel: str
+    qty: Decimal
+
+    @classmethod
+    def sanitize(cls, row, header: Header) -> SalesDTO | FailedRow:
+        dto = SalesDTO()
+        try:
+            sku = str(row[header.sku])
+            channel = str(row[header.channel])
+            qty = Decimal(row[header.qty])
+        except (ValueError, InvalidOperation, TypeError) as e:
+            return FailedRow(
+                row=row,
+                error=e,
+                context="One or more elements of row are incompatible type.",
+            )
+
+        if qty <= 0:
+            return FailedRow(
+                row=row,
+                error=ValueError(),
+                context="Sale qty must be greater than zero",
+            )
+
+        dto.sku = sku
+        dto.channel = channel
+        dto.qty = qty
+
+        if not all(vars(dto).values()):
+            return FailedRow(
+                row=row, error=ValueError(), context="incomplete data in row."
+            )
+        return dto
 
 
 class SalesData:

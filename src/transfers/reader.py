@@ -4,7 +4,7 @@ import openpyxl as xl
 from openpyxl.workbook import Workbook
 from openpyxl.worksheet._read_only import ReadOnlyWorksheet
 
-from src.data import DataSourceError, FailedRow, Header
+from src.data import FailedRow, Header
 
 from .transfer_rows import TransferRow
 
@@ -12,9 +12,9 @@ _HEADER_ROWS = {0}
 
 
 class TransferFileReader:
-    def __init__(self, filename, header: Header):
+    def __init__(self, filename, sheet_name: str, header: Header):
         self.header = header
-        self.wb, self.data_source = self._initialize_data(filename)
+        self.wb, self.data_source = self._initialize_data(filename, sheet_name)
 
     def readline(self) -> Iterable[TransferRow | FailedRow]:
         for raw in self._iter():
@@ -29,17 +29,16 @@ class TransferFileReader:
                 continue
             yield raw
 
-    def _initialize_data(self, filename) -> tuple[Workbook, ReadOnlyWorksheet]:
+    def _initialize_data(
+        self, filename, sheet_name: str
+    ) -> tuple[Workbook, ReadOnlyWorksheet]:
         wb = xl.load_workbook(
             filename=filename,
             read_only=True,
             data_only=True,
         )
 
-        if len(wb.sheetnames) > 1:
-            raise DataSourceError("Transfers File must have exactly one sheet.")
-
-        ws = wb.active
+        ws = wb[sheet_name]
         if not isinstance(ws, ReadOnlyWorksheet):
             raise TypeError(f"Data must be in Worksgheet, not {type(ws)}")
 

@@ -154,7 +154,11 @@ class TestInventoryRowAllocation:
         assert inv_row.sales.total_cost == Decimal(50)
         assert inv_row.sales.allocated_sales == 10
 
+    def test_sales_Data_can_be_added_with_inv_row_record_sale_method(self):
+        inv_row, cost = self._create_row_instances()
+        inv_row.record_sale("Amazon", 10)
 
+        assert inv_row.sales.total_sales == 10
 
     def test_allocations_with_different_costs_impact_avco_proportional_to_units_allocated(
         self,

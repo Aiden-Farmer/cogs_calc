@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from datetime import UTC, datetime
 
 from src.adapters import (
     allocate_landed_costs,
@@ -11,6 +12,7 @@ from src.adapters import (
     write_outfile,
 )
 from src.data import FailedRow, Header, InventoryRow, LandedCostRow
+from src.data.excel import TransactionSheetDateColumns, remove_wb_dates_after_target
 from src.inventory_kits.reader import ExcelKitReader
 
 _FAILED_INVENTORY_ROWS: list[FailedRow] = []
@@ -26,8 +28,22 @@ _TRANSFER_HEADER = Header.transfer_row(
     to_sku=1,
     qty=2,
     date=3,
-    date_format="YYYY-MM-DD",
+    date_format="%Y-%m-%d",
 )
+
+_TRANSACTION_SHEET_DATE_COLUMNS: TransactionSheetDateColumns = {
+        "Purchases": 4,
+        "Prior Period Returns": 3,
+        "Adjustments": 1,
+        "AMAZON SC": 2,
+        "EBAY": 43,
+        "ETSY": 14,
+        "HOUZZ": 2,
+        "SHOPIFY": 17,
+        "WALMART": 2,
+        "WAYFAIR": 2,
+        "Elegance_RCH": 5,
+        }
 
 
 def calculate_all_lineitems_average_cost_from_excel(
@@ -36,13 +52,20 @@ def calculate_all_lineitems_average_cost_from_excel(
     inventory_sheet_name: str,
     landed_cost_sheet_name: str,
     transfers={},
+    as_of_date: datetime | None = None,
 ):
+    if as_of_date:
+        remove_wb_dates_after_target(
+            inventory_file_path, as_of_date, _TRANSACTION_SHEET_DATE_COLUMNS
+        )
+
     inv_reader = give_reader(
         file_path=inventory_file_path,
         sheet_name=inventory_sheet_name,
         header=_INV_HEADER,
         return_type=InventoryRow,
     )
+    _PURCHASE_HEADER.as_of_date = as_of_date
     cost_reader = give_reader(
         file_path=landed_cost_file_path,
         sheet_name=landed_cost_sheet_name,
@@ -65,6 +88,9 @@ def calculate_all_lineitems_average_cost_from_excel(
     for record in _FAILED_PURCHASE_ROWS:
         print(record.row, ", ", record.context)
 
+    for record in _FAILED_TRANSFER_ROWS:
+        print(record.row, ", ", record.context)
+
 
 def _transfers(transfer_file_path, transfer_sheet_name):
 
@@ -78,6 +104,15 @@ def _transfers(transfer_file_path, transfer_sheet_name):
     _FAILED_TRANSFER_ROWS.extend(failed_transfer_rows)
 
     return transfers, failed_transfer_rows
+
+
+def _parse_as_of_date(value: str) -> datetime:
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").replace(tzinfo=UTC)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(
+            f"{value!r} is not a valid date, expected format YYYY-MM-DD"
+        ) from exc
 
 
 def main() -> None:
@@ -114,6 +149,13 @@ def main() -> None:
         help=" Upload a kit file to split purchases and inventory into kit components.",
     )
 
+    parser.add_argument(
+        "--as-of-date",
+        type=_parse_as_of_date,
+        default=None,
+        help="fmt: [YYYY-MM-DD] remove inventory transactions that postdate --as-of-date,"
+    )
+
     args = parser.parse_args()
 
     if args.kit_upload:
@@ -122,7 +164,7 @@ def main() -> None:
         kit_obj.close()
 
     if args.transfer_file and args.transfer_sheet_name:
-        transfers = _transfers(
+        transfers, _ = _transfers(
             transfer_file_path=args.transfer_file,
             transfer_sheet_name=args.transfer_sheet_name,
         )
@@ -135,6 +177,7 @@ def main() -> None:
         inventory_file_path=args.inventory_file,
         inventory_sheet_name=args.inventory_sheet_name,
         transfers=transfers,
+        as_of_date=args.as_of_date,
     )
 
 

@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from . import excel
 from .data_exception import DataSourceError
-from .datarows import FailedRow, Header, InventoryRow, LandedCostRow, RowLike
+from .datarows import (
+    FailedRow,
+    Header,
+    InventoryRow,
+    LandedCostRow,
+    RowLike,
+    SalesRow,
+)
 
 __all__ = [
     "DataSourceError",
@@ -11,5 +18,6 @@ __all__ = [
     "InventoryRow",
     "LandedCostRow",
     "RowLike",
+    "SalesRow",
     "excel",
 ]

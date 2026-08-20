@@ -6,10 +6,7 @@ from typing import Any, Self
 
 from ..data.datarows import FailedRow, Header, RowLike
 
-_DATE_FORMAT = "%m-%d--%Y %I:%M:%S %p"
 _USER_TZ = UTC
-
-Header.transfer_row(from_sku=1, to_sku=2, qty=4, date=3, date_format=_DATE_FORMAT)
 
 
 class TransferRow(RowLike):
@@ -52,23 +49,26 @@ class TransferDTO:
             return FailedRow(
                 row=row,
                 error=ValueError(),
-                context="Purchase qty must be greater than zero",
+                context="Transfer qty must be greater than zero",
             )
 
         if not date:
             return FailedRow(
-                row=row, error=ValueError(), context=" Purchase Must have valid date."
+                row=row, error=ValueError(), context="Transfer must have valid date."
             )
 
         if not isinstance(date, dt):
             try:
-                date = dt.strptime(date, header.date_format).astimezone(_USER_TZ)
+                date = dt.strptime(date, header.date_format)  # noqa: DTZ007 -- stamped with _USER_TZ below rather than assumed local.
             except ValueError:
                 return FailedRow(
                     row=row,
                     error=TypeError(),
                     context=f"Date value {date} exists but is incompatible with {header.date_format}",
                 )
+
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=_USER_TZ)
 
         dto.to_sku = to_sku
         dto.from_sku = from_sku

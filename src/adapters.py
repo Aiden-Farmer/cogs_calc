@@ -11,6 +11,7 @@ from src.data import (
     InventoryRow,
     LandedCostRow,
     RowLike,
+    SalesRow,
     excel,
 )
 from src.transfers.reader import TransferFileReader
@@ -39,7 +40,7 @@ def give_transfer_reader(
     if not file_path.endswith(".xlsx"):
         raise TypeError()
 
-    return TransferFileReader(filename=file_path, header=header)
+    return TransferFileReader(filename=file_path, sheet_name=sheet_name, header=header)
 
 
 def build_inventory(
@@ -54,8 +55,6 @@ def build_inventory(
 
         elif inv_row.sku in inventory:
             inventory[inv_row.sku].qty += inv_row.qty
-            # While builing Inventory structure we have not allocated any purchases to inventory,
-            # so unallocated == qty
             inventory[inv_row.sku].unallocated = inventory[inv_row.sku].qty
         else:
             inventory[inv_row.sku] = inv_row
@@ -78,12 +77,11 @@ def build_transfers(
             continue
 
         elif trans_row.from_sku in transfers:
-            if trans_row.to_sku != transfers[trans_row.to_sku]:
+            if trans_row.to_sku != transfers[trans_row.from_sku].to_sku:
                 raise DataSourceError(
-                    "Transfer of sku %s to %s already has existing transfer to other sku %s.",
-                    trans_row.from_sku,
-                    trans_row.to_sku,
-                    transfers[trans_row.from_sku].to_sku,
+                    f"Transfer of sku {trans_row.from_sku} to {trans_row.to_sku} "
+                    "already has existing transfer to other sku "
+                    f"{transfers[trans_row.from_sku].to_sku}."
                 )
 
             transfers[trans_row.from_sku].qty += trans_row.qty
@@ -91,6 +89,31 @@ def build_transfers(
             transfers[trans_row.from_sku] = trans_row
 
     return transfers, failed_rows
+
+
+def record_sales(
+    sales_reader: excel.Reader[SalesRow],
+    inventory: dict[str, InventoryRow],
+) -> list[FailedRow]:
+    failed_rows: list[FailedRow] = []
+    for sale_row in tqdm(sales_reader.readline(), desc="Reading sales records"):
+        if isinstance(sale_row, FailedRow):
+            failed_rows.append(sale_row)
+            continue
+
+        if sale_row.sku not in inventory:
+            failed_rows.append(
+                FailedRow(
+                    row=sale_row,
+                    error=ValueError(),
+                    context="Sale for item that is not in inventory.",
+                )
+            )
+            continue
+
+        inventory[sale_row.sku].record_sale(sale_row.channel, int(sale_row.qty))
+
+    return failed_rows
 
 
 def allocate_landed_costs(
@@ -104,21 +127,29 @@ def allocate_landed_costs(
         inventory: dict[str, InventoryRow],
         transfers: dict[str, TransferRow],
     ) -> None:
-        if cost_row.sku in transfers:
-            transfer_row = transfers[cost_row.sku]
-            if inventory[transfer_row.from_sku].unallocated != 0:
-                inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+        if cost_row.sku not in transfers:
+            inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+            return
 
-            elif inventory[transfer_row.from_sku].unallocated == 0:
-                target_row = inventory[transfer_row.to_sku]
-                cost_row.qty = min(cost_row.qty, transfer_row.qty)
-                target_row.allocate_from_landed_cost(cost_row)
+        transfer_row = transfers[cost_row.sku]
+        if inventory[transfer_row.from_sku].unallocated != 0:
+            inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+            return
 
-                transfer_row.qty -= cost_row.qty
-                if transfer_row.qty == 0:
-                    del transfers[cost_row.sku]
+        target_row = inventory[transfer_row.to_sku]
+        original_qty = cost_row.qty
+        redirected_qty = min(cost_row.qty, transfer_row.qty)
+        cost_row.qty = redirected_qty
+        target_row.allocate_from_landed_cost(cost_row)
 
-        inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
+        transfer_row.qty -= redirected_qty
+        if transfer_row.qty == 0:
+            del transfers[cost_row.sku]
+
+        leftover_qty = original_qty - redirected_qty
+        if leftover_qty > 0:
+            cost_row.qty = leftover_qty
+            inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
 
     failed_rows: list[FailedRow] = []
     for cost_row in tqdm(cost_reader.readline(), desc="Reading purchase records"):
