@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 import io
+import logging
 import os
 import shutil
 import stat
@@ -200,7 +200,9 @@ def remove_wb_dates_after_target(
             transaction_sheets.items(), desc="Calculating..."
         ):
             _prune_sheet(wb.Sheets(sheet_name), date_col, target)
-        logger.debug(f"Transactions after --as-of-date removed: {time.perf_counter() - t_prune:.2f}s")
+        logger.debug(
+            f"Transactions after --as-of-date removed: {time.perf_counter() - t_prune:.2f}s"
+        )
 
         excel.Calculation = _XL_CALCULATION_AUTOMATIC  # restored before Save();
         # xlsx persists calc mode, would otherwise leave the file in manual mode.
@@ -291,9 +293,10 @@ def _prune_sheet(sheet, date_col: int, target: datetime) -> None:
         value = row[date_idx]
         if value is None:
             return True
-        return isinstance(value, datetime) and (
-            value.replace(tzinfo=None) if value.tzinfo else value
-        ) > naive_target
+        return (
+            isinstance(value, datetime)
+            and (value.replace(tzinfo=None) if value.tzinfo else value) > naive_target
+        )
 
     row_count = last_row - first_data_row + 1
     write_cursor = first_data_row
@@ -356,8 +359,7 @@ def _prune_sheet(sheet, date_col: int, target: datetime) -> None:
     t_delete = time.perf_counter()
     sheet.Rows(f"{write_cursor}:{last_row}").Delete()
     logger.debug(
-        f"[timing] {sheet.Name}: tail delete took "
-        f"{time.perf_counter() - t_delete:.2f}s"
+        f"[timing] {sheet.Name}: tail delete took {time.perf_counter() - t_delete:.2f}s"
     )
 
 

@@ -22,6 +22,7 @@ _UNIT_COST_COL = 11
 
 logger = logging.getLogger("COGS")
 
+
 class ExcelKitReader:
     def __init__(self, filename: str):
         self.wb, self.data_source = self._initialize_data(filename)

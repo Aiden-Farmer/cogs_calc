@@ -96,7 +96,11 @@ class TestLandedCostRowConstructor:
         self.data[4] = datetime(2024, 6, 2, tzinfo=UTC)
 
         h = Header.landed_cost(
-            sku=0, qty=2, unit_cost=3, date=4, as_of_date=datetime(2024, 6, 1, tzinfo=UTC)
+            sku=0,
+            qty=2,
+            unit_cost=3,
+            date=4,
+            as_of_date=datetime(2024, 6, 1, tzinfo=UTC),
         )
         lc = LandedCostRow.from_row(self.data, h)
 
@@ -107,7 +111,11 @@ class TestLandedCostRowConstructor:
         self.data[4] = datetime(2024, 6, 1, tzinfo=UTC)
 
         h = Header.landed_cost(
-            sku=0, qty=2, unit_cost=3, date=4, as_of_date=datetime(2024, 6, 1, tzinfo=UTC)
+            sku=0,
+            qty=2,
+            unit_cost=3,
+            date=4,
+            as_of_date=datetime(2024, 6, 1, tzinfo=UTC),
         )
         lc = LandedCostRow.from_row(self.data, h)
 

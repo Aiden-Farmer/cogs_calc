@@ -48,7 +48,9 @@ class TestTransferFileReaderInitialization:
         assert rows[0].from_sku == "sku-a"
 
     def test_raises_keyerror_for_unknown_sheet_name(self, tmp_path):
-        path = _write_workbook(tmp_path, [["header"], ["sku-a", "sku-b", 3, "2024-06-01"]])
+        path = _write_workbook(
+            tmp_path, [["header"], ["sku-a", "sku-b", 3, "2024-06-01"]]
+        )
 
         with pytest.raises(KeyError):
             TransferFileReader(

@@ -294,9 +294,7 @@ class TestAllocateLandedCosts:
         transfers = {"sku-a": _transfer_row("sku-a", "sku-b", qty=5)}
         cost_row = _landed_cost_row("sku-a", qty=4, unit_cost=2)
 
-        failed = allocate_landed_costs(
-            _FakeReader([cost_row]), inventory, transfers
-        )
+        failed = allocate_landed_costs(_FakeReader([cost_row]), inventory, transfers)
 
         assert failed == []
         assert source_row.unallocated == Decimal(6)
@@ -314,9 +312,7 @@ class TestAllocateLandedCosts:
         transfers = {"sku-a": _transfer_row("sku-a", "sku-b", qty=5)}
         cost_row = _landed_cost_row("sku-a", qty=3, unit_cost=2)
 
-        failed = allocate_landed_costs(
-            _FakeReader([cost_row]), inventory, transfers
-        )
+        failed = allocate_landed_costs(_FakeReader([cost_row]), inventory, transfers)
 
         assert failed == []
         assert dest_row.unallocated == Decimal(17)

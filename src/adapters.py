@@ -215,7 +215,9 @@ def write_outfile(
             startfile(outfile_name)
             break
         except PermissionError:
-            logger.error("'outfile.xlsx is in use, please close it to complete program.")
+            logger.error(
+                "'outfile.xlsx is in use, please close it to complete program."
+            )
             uin = input(
                 "Once the file is closed, enter [yes] or [y] to get output, any other input will terminate the program: "
             )

@@ -1,8 +1,9 @@
 from __future__ import annotations
-import logging
+
 import argparse
-from datetime import UTC, datetime
+import logging
 import sys
+from datetime import UTC, datetime
 
 from src.adapters import (
     allocate_landed_costs,
@@ -17,9 +18,10 @@ from src.data import FailedRow, Header, InventoryRow, LandedCostRow, SalesRow
 from src.data.excel import TransactionSheetDateColumns, remove_wb_dates_after_target
 from src.inventory_kits.reader import ExcelKitReader
 
-formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("COGS")
 logger.setLevel(0)
+
 
 def setup_logging(handler_name, log_file=None, level=20):
     if not log_file:
@@ -28,7 +30,7 @@ def setup_logging(handler_name, log_file=None, level=20):
         handler = logging.FileHandler(log_file)
     handler.setFormatter(formatter)
     handler.name = handler_name
-     
+
     handler.setLevel(level)
     logger.addHandler(handler)
     return logger
@@ -68,18 +70,18 @@ _SALES_HEADER = Header.sales_row(
 )
 
 _TRANSACTION_SHEET_DATE_COLUMNS: TransactionSheetDateColumns = {
-        "Purchases": 4,
-        "Prior Period Returns": 3,
-        "Adjustments": 1,
-        "AMAZON SC": 2,
-        "EBAY": 43,
-        "ETSY": 14,
-        "HOUZZ": 2,
-        "SHOPIFY": 15,
-        "WALMART": 2,
-        "WAYFAIR": 2,
-        "Elegance_RCH": 5,
-        }
+    "Purchases": 4,
+    "Prior Period Returns": 3,
+    "Adjustments": 1,
+    "AMAZON SC": 2,
+    "EBAY": 43,
+    "ETSY": 14,
+    "HOUZZ": 2,
+    "SHOPIFY": 15,
+    "WALMART": 2,
+    "WAYFAIR": 2,
+    "Elegance_RCH": 5,
+}
 
 
 def calculate_all_lineitems_average_cost_from_excel(
@@ -134,7 +136,7 @@ def calculate_all_lineitems_average_cost_from_excel(
         logger.info(record.context, ", ", record.row)
 
     for record in _FAILED_PURCHASE_ROWS:
-       logger.info(record.context, ", ", record.row)
+        logger.info(record.context, ", ", record.row)
 
     for record in _FAILED_TRANSFER_ROWS:
         logger.info(record.context, ", ", record.row)
@@ -208,15 +210,16 @@ def main() -> None:
         "--as-of-date",
         type=_parse_as_of_date,
         default=None,
-        help="fmt: [YYYY-MM-DD] remove inventory transactions that postdate --as-of-date,"
+        help="fmt: [YYYY-MM-DD] remove inventory transactions that postdate --as-of-date,",
     )
 
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose")
 
-    parser.add_argument("--very-verbose", "-vv", action="store_true", help= "More runtime info")
+    parser.add_argument(
+        "--very-verbose", "-vv", action="store_true", help="More runtime info"
+    )
 
     args = parser.parse_args()
-
 
     if args.verbose:
         setup_logging(handler_name="verbose", level=20)
@@ -227,7 +230,6 @@ def main() -> None:
                 handler.close()
 
         setup_logging(handler_name="very_verbose", level=10)
-
 
     if args.kit_upload:
         kit_obj = ExcelKitReader(args.kit_upload)

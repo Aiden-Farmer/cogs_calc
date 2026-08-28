@@ -99,9 +99,7 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
             patch(
                 "main.give_reader", side_effect=[object(), object()]
             ) as mock_give_reader,
-            patch(
-                "main.build_inventory", return_value=({"sku-a": object()}, [])
-            ),
+            patch("main.build_inventory", return_value=({"sku-a": object()}, [])),
             patch("main.record_sales") as mock_record,
             patch("main.allocate_landed_costs", return_value=[]),
             patch("main.write_outfile"),
@@ -124,12 +122,8 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
         )
 
         with (
-            patch(
-                "main.give_reader", side_effect=[object(), object(), object()]
-            ),
-            patch(
-                "main.build_inventory", return_value=({"sku-a": object()}, [])
-            ),
+            patch("main.give_reader", side_effect=[object(), object(), object()]),
+            patch("main.build_inventory", return_value=({"sku-a": object()}, [])),
             patch("main.record_sales", return_value=[sales_fail]),
             patch("main.allocate_landed_costs", return_value=[]),
             patch("main.write_outfile"),
@@ -188,9 +182,7 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
 
         with (
             patch("main.give_reader", side_effect=[object(), object()]),
-            patch(
-                "main.build_inventory", return_value=({"sku-a": object()}, [])
-            ),
+            patch("main.build_inventory", return_value=({"sku-a": object()}, [])),
             patch("main.allocate_landed_costs", return_value=[]),
             patch("main.write_outfile"),
         ):
@@ -222,9 +214,7 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
                 "main.remove_wb_dates_after_target", side_effect=fake_prune
             ) as mock_prune,
             patch("main.give_reader", side_effect=fake_give_reader),
-            patch(
-                "main.build_inventory", return_value=({"sku-a": object()}, [])
-            ),
+            patch("main.build_inventory", return_value=({"sku-a": object()}, [])),
             patch("main.allocate_landed_costs", return_value=[]),
             patch("main.write_outfile"),
         ):
@@ -248,9 +238,7 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
         with (
             patch("main.remove_wb_dates_after_target"),
             patch("main.give_reader", side_effect=[object(), object()]),
-            patch(
-                "main.build_inventory", return_value=({"sku-a": object()}, [])
-            ),
+            patch("main.build_inventory", return_value=({"sku-a": object()}, [])),
             patch("main.allocate_landed_costs", return_value=[]),
             patch("main.write_outfile"),
         ):
@@ -268,9 +256,7 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
         with (
             patch("main.remove_wb_dates_after_target") as mock_prune,
             patch("main.give_reader", side_effect=[object(), object()]),
-            patch(
-                "main.build_inventory", return_value=({"sku-a": object()}, [])
-            ),
+            patch("main.build_inventory", return_value=({"sku-a": object()}, [])),
             patch("main.allocate_landed_costs", return_value=[]),
             patch("main.write_outfile"),
         ):
@@ -291,9 +277,7 @@ class TestTransfersHelper:
 
         with (
             patch("main.give_transfer_reader", return_value=object()),
-            patch(
-                "main.build_transfers", return_value=(transfers_dict, failed)
-            ),
+            patch("main.build_transfers", return_value=(transfers_dict, failed)),
         ):
             result = _transfers(
                 transfer_file_path="transfers.xlsx",

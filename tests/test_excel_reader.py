@@ -474,9 +474,7 @@ class TestRemoveWbDatesAfterTarget:
         def _capture_prune(sheet, date_col, target):
             seen_calculation.append(mock_app.Calculation)
 
-        with patch(
-            "src.data.excel.reader._prune_sheet", side_effect=_capture_prune
-        ):
+        with patch("src.data.excel.reader._prune_sheet", side_effect=_capture_prune):
             remove_wb_dates_after_target(
                 str(src_path), datetime(2024, 1, 1), {"Transactions": 0}
             )
