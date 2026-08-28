@@ -1,3 +1,7 @@
+import logging
+
+logger = logging.getLogger("COGS")
+
 from os import startfile
 from typing import TypeVar
 
@@ -11,6 +15,7 @@ from src.data import (
     InventoryRow,
     LandedCostRow,
     RowLike,
+    SalesData,
     SalesRow,
     excel,
 )
@@ -111,7 +116,8 @@ def record_sales(
             )
             continue
 
-        inventory[sale_row.sku].record_sale(sale_row.channel, int(sale_row.qty))
+        for channel, qty in sale_row.qty.items():
+            inventory[sale_row.sku].record_sale(channel, int(qty))
 
     return failed_rows
 
@@ -183,6 +189,10 @@ def write_outfile(
     if not ws:
         raise ValueError
     ws.title = "Inventory Asset Value"
+    # Channel names, in the same order InventoryRow.export() writes their
+    # qty (then value) columns in -- both derive from SalesData.sales_qty's
+    # definition order, which export() anchors the value columns' start on.
+    channels = list(SalesData().sales_qty.keys())
     ws.append(
         [
             "SKU",
@@ -192,6 +202,8 @@ def write_outfile(
             "Dates received not counting against Average Cost",
             "Total Cost",
             "Average Cost",
+            *channels,
+            *(f"{channel} Value" for channel in channels),
         ]
     )
     for item in inventory.values():
@@ -203,7 +215,7 @@ def write_outfile(
             startfile(outfile_name)
             break
         except PermissionError:
-            print("'outfile.xlsx is in use, please close it to complete program.")
+            logger.error("'outfile.xlsx is in use, please close it to complete program.")
             uin = input(
                 "Once the file is closed, enter [yes] or [y] to get output, any other input will terminate the program: "
             )

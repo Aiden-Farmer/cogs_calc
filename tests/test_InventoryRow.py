@@ -223,6 +223,21 @@ class TestInventoryRowAllocation:
         assert exported["f"] == inv_row.total_cost
         assert exported["g"] == inv_row.average_cost
 
+    def test_export_includes_one_column_per_sales_channel_after_g(self):
+        inv_row, cost = self._create_row_instances()
+        inv_row.allocate_from_landed_cost(cost_row=cost)
+        inv_row.record_sale("Amazon", 4)
+        inv_row.record_sale("eBay", 2)
+
+        exported = inv_row.export()
+
+        channels = list(SalesData().sales_qty.keys())
+        for i, channel in enumerate(channels):
+            col = chr(ord("h") + i)
+            assert exported[col] == inv_row.sales.sales_qty[channel]
+        assert exported["h"] == 4  # Amazon is the first defined channel
+        assert exported["i"] == 2  # eBay is the second
+
     def test_repr_includes_key_fields(self):
         inv_row, _ = self._create_row_instances()
 

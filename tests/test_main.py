@@ -16,10 +16,12 @@ def _reset_failed_row_globals():
     main_module._FAILED_INVENTORY_ROWS.clear()
     main_module._FAILED_PURCHASE_ROWS.clear()
     main_module._FAILED_TRANSFER_ROWS.clear()
+    main_module._FAILED_SALES_ROWS.clear()
     yield
     main_module._FAILED_INVENTORY_ROWS.clear()
     main_module._FAILED_PURCHASE_ROWS.clear()
     main_module._FAILED_TRANSFER_ROWS.clear()
+    main_module._FAILED_SALES_ROWS.clear()
 
 
 class TestCalculateAllLineitemsAverageCostFromExcel:
@@ -51,6 +53,97 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
         mock_build_inventory.assert_called_once_with(inv_reader)
         mock_allocate.assert_called_once_with(cost_reader, inventory, transfers)
         mock_write_outfile.assert_called_once_with(inventory)
+
+    def test_records_sales_against_inventory_before_allocating_landed_costs(self):
+        inv_reader = object()
+        cost_reader = object()
+        sales_reader = object()
+        inventory = {"sku-a": object()}
+        call_order = []
+
+        def _record_sales(reader, inv):
+            call_order.append("record_sales")
+            assert reader is sales_reader
+            assert inv is inventory
+            return []
+
+        def _allocate(reader, inv, transfers):
+            call_order.append("allocate_landed_costs")
+            return []
+
+        with (
+            patch(
+                "main.give_reader",
+                side_effect=[inv_reader, cost_reader, sales_reader],
+            ) as mock_give_reader,
+            patch("main.build_inventory", return_value=(inventory, [])),
+            patch("main.record_sales", side_effect=_record_sales) as mock_record,
+            patch("main.allocate_landed_costs", side_effect=_allocate),
+            patch("main.write_outfile"),
+        ):
+            calculate_all_lineitems_average_cost_from_excel(
+                inventory_file_path="inv.xlsx",
+                landed_cost_file_path="cost.xlsx",
+                inventory_sheet_name="Inventory",
+                landed_cost_sheet_name="Purchases",
+                sales_file_path="sales.xlsx",
+                sales_sheet_name="Sales",
+            )
+
+        assert mock_give_reader.call_count == 3
+        mock_record.assert_called_once_with(sales_reader, inventory)
+        assert call_order == ["record_sales", "allocate_landed_costs"]
+
+    def test_skips_sales_reading_when_sales_file_or_sheet_not_given(self):
+        with (
+            patch(
+                "main.give_reader", side_effect=[object(), object()]
+            ) as mock_give_reader,
+            patch(
+                "main.build_inventory", return_value=({"sku-a": object()}, [])
+            ),
+            patch("main.record_sales") as mock_record,
+            patch("main.allocate_landed_costs", return_value=[]),
+            patch("main.write_outfile"),
+        ):
+            calculate_all_lineitems_average_cost_from_excel(
+                inventory_file_path="inv.xlsx",
+                landed_cost_file_path="cost.xlsx",
+                inventory_sheet_name="Inventory",
+                landed_cost_sheet_name="Purchases",
+            )
+
+        assert mock_give_reader.call_count == 2
+        mock_record.assert_not_called()
+
+    def test_accumulates_failed_sales_rows_into_module_level_list(self):
+        import main as main_module
+
+        sales_fail = FailedRow(
+            row=["bad-sale"], error=ValueError(), context="bad sale row"
+        )
+
+        with (
+            patch(
+                "main.give_reader", side_effect=[object(), object(), object()]
+            ),
+            patch(
+                "main.build_inventory", return_value=({"sku-a": object()}, [])
+            ),
+            patch("main.record_sales", return_value=[sales_fail]),
+            patch("main.allocate_landed_costs", return_value=[]),
+            patch("main.write_outfile"),
+        ):
+            calculate_all_lineitems_average_cost_from_excel(
+                inventory_file_path="inv.xlsx",
+                landed_cost_file_path="cost.xlsx",
+                inventory_sheet_name="Inventory",
+                landed_cost_sheet_name="Purchases",
+                sales_file_path="sales.xlsx",
+                sales_sheet_name="Sales",
+            )
+
+        assert main_module._FAILED_SALES_ROWS == [sales_fail]
 
     def test_accumulates_failed_rows_into_module_level_lists(self):
         inv_fail = FailedRow(
@@ -250,7 +343,31 @@ class TestMainCli:
             inventory_sheet_name="Inventory",
             transfers=transfers,
             as_of_date=None,
+            sales_file_path=None,
+            sales_sheet_name=None,
         )
+
+    def test_sales_flags_are_passed_through_to_the_calculation(self):
+        argv = [
+            "main.py",
+            "--inventory-file",
+            "inv.xlsx",
+            "--purchase-file",
+            "cost.xlsx",
+            "--sales-file",
+            "sales.xlsx",
+            "--sales-sheet-name",
+            "Sales",
+        ]
+        with (
+            patch("sys.argv", argv),
+            patch("main.calculate_all_lineitems_average_cost_from_excel") as mock_calc,
+        ):
+            main()
+
+        _, kwargs = mock_calc.call_args
+        assert kwargs["sales_file_path"] == "sales.xlsx"
+        assert kwargs["sales_sheet_name"] == "Sales"
 
     def test_transfer_flags_pass_the_transfers_dict_not_the_raw_tuple(self):
         # Regression test: main() used to do `transfers = _transfers(...)`

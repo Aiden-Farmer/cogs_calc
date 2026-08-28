@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -9,6 +11,8 @@ from decimal import Decimal, DivisionByZero, InvalidOperation
 from typing import Any, Self
 
 from typeguard import typechecked
+
+logger = logging.getLogger("COGS")
 
 _USER_TZ = UTC
 _INVALID_SKU_CHAR = {
@@ -59,18 +63,18 @@ class LandedCostRow(RowLike):
 
 class SalesRow(RowLike):
     """
-    A single sale record: units of a sku sold through one channel.
+    One sku's sales record: qty sold per channel over the period, read
+    from a single wide sheet with one qty column per channel.
     """
 
     must_sort = False
 
     def __init__(self, row: SalesDTO) -> None:
         self.sku: str = row.sku
-        self.channel: str = row.channel
-        self.qty: Decimal = row.qty
+        self.qty: dict[str, Decimal] = row.qty
 
     def __repr__(self) -> str:
-        return f"SalesRow(sku={self.sku!r}, channel={self.channel!r}, qty={self.qty!r})"
+        return f"SalesRow(sku={self.sku!r}, qty={self.qty!r})"
 
     @classmethod
     def from_row(cls, row, header) -> SalesRow | FailedRow:
@@ -111,7 +115,7 @@ class InventoryRow(RowLike):
         return cls(dto)
 
     def export(self) -> dict:
-        return {
+        row = {
             "a": self.sku,
             "b": self.qty,
             "c": self.unallocated,
@@ -125,11 +129,24 @@ class InventoryRow(RowLike):
             "f": self.total_cost,
             "g": self.average_cost,
         }
+        # One column per sales channel, continuing on from "g" above, then
+        # one more per channel for sales value; order matches
+        # SalesData.sales_qty/.sales_value's definition order, which
+        # write_outfile relies on to build matching headers.
+        qty_start = ord("h")
+        for i, qty in enumerate(self.sales.sales_qty.values()):
+            row[chr(qty_start + i)] = qty
+
+        value_start = qty_start + len(self.sales.sales_qty)
+        for j, val in enumerate(self.sales.sales_value.values()):
+            row[chr(value_start + j)] = val
+
+        return row
 
     def allocate_from_landed_cost(self, cost_row: LandedCostRow):
         if cost_row.qty <= 0:
             self.excluded_dates.append(cost_row.date)
-            print(
+            logger.warning(
                 "Potential data integrity error and purchases datasource 0 qty purchase row: ",
                 cost_row,
             )
@@ -153,7 +170,7 @@ class InventoryRow(RowLike):
             try:
                 self.average_cost = self.total_cost / (self.qty - self.unallocated)
             except InvalidOperation, DivisionByZero:
-                print("issue:", self.qty, cost_row.qty, self.unallocated, self.sku)
+                logger.error("issue:", self.qty, cost_row.qty, self.unallocated, self.sku)
                 self.average_cost = self.total_cost
             self.purchase_dates.append(cost_row.date)
 
@@ -172,7 +189,7 @@ class InventoryRow(RowLike):
 
     def record_sale(self, channel: str, qty: int):
         if channel not in self.sales.sales_qty:
-            print("%s missing from SalesData defined channels", channel)
+            logger.warning("%s missing from SalesData defined channels", channel)
             return
         self.sales.sales_qty[channel] += qty
         self.sales.total_sales += qty
@@ -210,7 +227,7 @@ class Header:
     date: int
     date_format: str
     as_of_date: dt | None = None
-    channel: int
+    channel_columns: dict[str, int]
 
     @classmethod
     def landed_cost(
@@ -256,13 +273,17 @@ class Header:
         return h
 
     @classmethod
-    def sales_row(cls, sku, channel, qty) -> Header:
-        """Creates a Header instance with all necessary SalesRow mappings."""
+    def sales_row(cls, sku, channel_columns: dict[str, int]) -> Header:
+        """Creates a Header instance with all necessary SalesRow mappings.
+
+        channel_columns maps each sales channel name (matching
+        SalesData.sales_qty's keys) to its 0-indexed qty column on the
+        sheet -- one sku per row, one qty column per channel.
+        """
 
         h = Header()
         h.sku = sku
-        h.channel = channel
-        h.qty = qty
+        h.channel_columns = channel_columns
         return h
 
     def __repr__(self):
@@ -361,7 +382,7 @@ class LandedCostDTO:
                 f"Purchase dated {date:%Y-%m-%d} is after "
                 f"as_of_date {header.as_of_date:%Y-%m-%d}; excluded."
             )
-            print(context, row)
+            logger.info(context, row)
             return FailedRow(row=row, error=ValueError(), context=context)
 
         dto.date = date
@@ -375,38 +396,50 @@ class LandedCostDTO:
 
 class SalesDTO:
     sku: str
-    channel: str
-    qty: Decimal
+    qty: dict[str, Decimal]
 
     @classmethod
     def sanitize(cls, row, header: Header) -> SalesDTO | FailedRow:
         dto = SalesDTO()
         try:
             sku = str(row[header.sku])
-            channel = str(row[header.channel])
-            qty = Decimal(row[header.qty])
-        except (ValueError, InvalidOperation, TypeError) as e:
+        except (ValueError, TypeError) as e:
             return FailedRow(
-                row=row,
-                error=e,
-                context="One or more elements of row are incompatible type.",
+                row=row, error=e, context="Sku column is an incompatible type."
             )
 
-        if qty <= 0:
-            return FailedRow(
-                row=row,
-                error=ValueError(),
-                context="Sale qty must be greater than zero",
-            )
-
-        dto.sku = sku
-        dto.channel = channel
-        dto.qty = qty
-
-        if not all(vars(dto).values()):
+        if not sku:
             return FailedRow(
                 row=row, error=ValueError(), context="incomplete data in row."
             )
+
+        qty_by_channel: dict[str, Decimal] = {}
+        for channel, col in header.channel_columns.items():
+            value = row[col]
+            if value is None or value == "":
+                continue  # sku didn't sell on this channel over the period
+
+            try:
+                qty = Decimal(value)
+            except (ValueError, InvalidOperation, TypeError) as e:
+                return FailedRow(
+                    row=row,
+                    error=e,
+                    context=f"{channel} qty is an incompatible type.",
+                )
+
+            if qty < 0:
+                return FailedRow(
+                    row=row,
+                    error=ValueError(),
+                    context=f"{channel} qty must not be negative.",
+                )
+
+            if qty > 0:
+                qty_by_channel[channel] = qty
+
+        dto.sku = sku
+        dto.qty = qty_by_channel
         return dto
 
 
@@ -422,8 +455,15 @@ class SalesData:
             "Wayfair": 0,
         }
 
-        self.sales_value = {}
-
+        self.sales_value = {
+            "Amazon": 0,
+            "eBay": 0,
+            "Etsy": 0,
+            "Houzz": 0,
+            "Shopify": 0,
+            "Walmart": 0,
+            "Wayfair": 0,
+        }
         self.total_sales = 0
         self.allocated_sales = 0
         self.total_cost = 0

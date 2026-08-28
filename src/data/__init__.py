@@ -8,6 +8,7 @@ from .datarows import (
     InventoryRow,
     LandedCostRow,
     RowLike,
+    SalesData,
     SalesRow,
 )
 
@@ -18,6 +19,7 @@ __all__ = [
     "InventoryRow",
     "LandedCostRow",
     "RowLike",
+    "SalesData",
     "SalesRow",
     "excel",
 ]

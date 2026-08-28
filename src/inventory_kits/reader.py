@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from collections.abc import Iterable
 from decimal import Decimal, InvalidOperation
@@ -19,6 +20,7 @@ _COMPONENT_SKU_COL = 1
 _KIT_QTY_COL = 2
 _UNIT_COST_COL = 11
 
+logger = logging.getLogger("COGS")
 
 class ExcelKitReader:
     def __init__(self, filename: str):
@@ -75,7 +77,7 @@ class ExcelKitReader:
 
             self.total_costs[kit] = total_cost
             if not total_cost:
-                print(f"no cost ratio from sellerlcoud cloud... {kit}")
+                logger.info(f"no cost ratio from sellerlcoud cloud... {kit}")
                 continue
 
             for component in components:

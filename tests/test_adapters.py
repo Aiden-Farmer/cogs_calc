@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from unittest.mock import patch
 
 import openpyxl
 import pytest
@@ -13,6 +14,7 @@ from src.adapters import (
     give_reader,
     give_transfer_reader,
     record_sales,
+    write_outfile,
 )
 from src.data import (
     DataSourceError,
@@ -20,6 +22,7 @@ from src.data import (
     Header,
     InventoryRow,
     LandedCostRow,
+    SalesData,
     SalesRow,
 )
 from src.data.datarows import InventoryDTO, LandedCostDTO, SalesDTO
@@ -56,11 +59,10 @@ def _landed_cost_row(sku: str, qty: int, unit_cost: int) -> LandedCostRow:
     return LandedCostRow(dto)
 
 
-def _sales_row(sku: str, channel: str, qty: int) -> SalesRow:
+def _sales_row(sku: str, qty: dict[str, int]) -> SalesRow:
     dto = SalesDTO()
     dto.sku = sku
-    dto.channel = channel
-    dto.qty = Decimal(qty)
+    dto.qty = {c: Decimal(q) for c, q in qty.items()}
     return SalesRow(dto)
 
 
@@ -214,7 +216,7 @@ class TestRecordSales:
     def test_records_sale_qty_against_matching_inventory_row(self):
         inv_row = _inventory_row("sku-a", 10)
         inventory = {"sku-a": inv_row}
-        sale_row = _sales_row("sku-a", "Amazon", qty=3)
+        sale_row = _sales_row("sku-a", {"Amazon": 3})
 
         failed = record_sales(_FakeReader([sale_row]), inventory)
 
@@ -222,8 +224,20 @@ class TestRecordSales:
         assert inv_row.sales.sales_qty["Amazon"] == 3
         assert inv_row.sales.total_sales == 3
 
+    def test_records_qty_for_every_channel_present_on_the_row(self):
+        inv_row = _inventory_row("sku-a", 10)
+        inventory = {"sku-a": inv_row}
+        sale_row = _sales_row("sku-a", {"Amazon": 3, "eBay": 2})
+
+        failed = record_sales(_FakeReader([sale_row]), inventory)
+
+        assert failed == []
+        assert inv_row.sales.sales_qty["Amazon"] == 3
+        assert inv_row.sales.sales_qty["eBay"] == 2
+        assert inv_row.sales.total_sales == 5
+
     def test_sale_for_sku_not_in_inventory_is_recorded_as_failed(self):
-        sale_row = _sales_row("missing-sku", "Amazon", qty=3)
+        sale_row = _sales_row("missing-sku", {"Amazon": 3})
 
         failed = record_sales(_FakeReader([sale_row]), {})
 
@@ -344,3 +358,68 @@ class TestAllocateLandedCosts:
         # path rather than growing total_cost against nonexistent stock.
         assert source_row.total_cost == Decimal(0)
         assert source_row.excluded_dates == [cost_row.date]
+
+
+class TestWriteOutfile:
+    def test_header_includes_one_column_per_sales_channel(self, tmp_path):
+        inv_row = _inventory_row("sku-a", 10)
+        outfile = tmp_path / "outfile.xlsx"
+
+        with patch("src.adapters.startfile"):
+            write_outfile({"sku-a": inv_row}, outfile_name=str(outfile))
+
+        wb = openpyxl.load_workbook(outfile)
+        header = [c.value for c in next(wb.active.iter_rows(max_row=1))]
+
+        assert header[:7] == [
+            "SKU",
+            "Inventory Cost",
+            "Unallocated",
+            "Dates Received",
+            "Dates received not counting against Average Cost",
+            "Total Cost",
+            "Average Cost",
+        ]
+        channels = list(SalesData().sales_qty.keys())
+        assert header[7 : 7 + len(channels)] == channels
+        assert header[7 + len(channels) :] == [f"{c} Value" for c in channels]
+
+    def test_writes_recorded_sales_qty_in_the_matching_channel_column(self, tmp_path):
+        inv_row = _inventory_row("sku-a", 10)
+        inv_row.record_sale("Amazon", 4)
+        inv_row.record_sale("eBay", 2)
+        outfile = tmp_path / "outfile.xlsx"
+
+        with patch("src.adapters.startfile"):
+            write_outfile({"sku-a": inv_row}, outfile_name=str(outfile))
+
+        wb = openpyxl.load_workbook(outfile)
+        header = [c.value for c in next(wb.active.iter_rows(max_row=1, max_col=30))]
+        data_row = [
+            c.value for c in next(wb.active.iter_rows(min_row=2, max_row=2, max_col=30))
+        ]
+        by_header = dict(zip(header, data_row, strict=False))
+
+        assert by_header["Amazon"] == 4
+        assert by_header["eBay"] == 2
+        assert by_header["Etsy"] == 0
+
+    def test_writes_computed_sales_value_in_the_matching_value_column(self, tmp_path):
+        inv_row = _inventory_row("sku-a", 0)  # unallocated starts at 0
+        inv_row.record_sale("Amazon", 5)
+        cost_row = _landed_cost_row("sku-a", qty=5, unit_cost=2)
+        inv_row.allocate_from_landed_cost(cost_row)  # completes sales_value calc
+        outfile = tmp_path / "outfile.xlsx"
+
+        with patch("src.adapters.startfile"):
+            write_outfile({"sku-a": inv_row}, outfile_name=str(outfile))
+
+        wb = openpyxl.load_workbook(outfile)
+        header = [c.value for c in next(wb.active.iter_rows(max_row=1, max_col=30))]
+        data_row = [
+            c.value for c in next(wb.active.iter_rows(min_row=2, max_row=2, max_col=30))
+        ]
+        by_header = dict(zip(header, data_row, strict=False))
+
+        assert by_header["Amazon Value"] == Decimal(10)  # 5 units * unit_cost 2
+        assert by_header["eBay Value"] == 0

@@ -3,11 +3,11 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from src.data import InventoryRow, LandedCostRow
+from src.data import InventoryRow, LandedCostRow, SalesRow
 from src.data.datarow_mutation_utils import split_kits
 
 # Private submodules
-from src.data.datarows import InventoryDTO, LandedCostDTO, RowLike
+from src.data.datarows import InventoryDTO, LandedCostDTO, RowLike, SalesDTO
 
 
 class TestReader:
@@ -45,6 +45,13 @@ class TestReader:
         dto.inventory = Decimal(10)
         yield InventoryRow(dto)
 
+    @staticmethod
+    def fake_sales_iter_raw(rt: type[RowLike]):
+        dto = SalesDTO()
+        dto.sku = "kit"
+        dto.qty = {"Amazon": Decimal(4), "eBay": Decimal(6)}
+        yield SalesRow(dto)
+
     def test_reader_handles_formula_cells(self): ...
 
     def test_reader_handles_password_protected_files(self): ...
@@ -80,6 +87,32 @@ class TestReader:
         assert isinstance(rows[1], LandedCostRow)
         assert rows[1].sku == "comp2"
         assert rows[1].unit_cost == Decimal(2.25)
+
+    def test_splits_sales_rows_from_kits_scaling_qty_per_channel(self):
+        # Regression test: split_kits' generic (non-LandedCostRow) branch
+        # assumed every RowLike has a flat .qty it can scale by the kit
+        # component quantity. SalesRow instead carries a per-channel qty
+        # dict, so a sale of a kit sku crashed with AttributeError instead
+        # of being split across its components.
+        kit_ref = {
+            "kit": {
+                "comp1": {"qty": 1, "cost": Decimal(1), "pc_of_total_cost": None},
+                "comp2": {"qty": 2, "cost": Decimal(2), "pc_of_total_cost": None},
+            }
+        }
+
+        decorated = split_kits(self.fake_sales_iter_raw, kit_ref=kit_ref)
+
+        rows = list(decorated(RowLike))
+
+        assert len(rows) == 2
+        assert isinstance(rows[0], SalesRow)
+        assert rows[0].sku == "comp1"
+        assert rows[0].qty == {"Amazon": Decimal(4), "eBay": Decimal(6)}
+
+        assert isinstance(rows[1], SalesRow)
+        assert rows[1].sku == "comp2"
+        assert rows[1].qty == {"Amazon": Decimal(8), "eBay": Decimal(12)}
 
     def test_reader_allocates_kit_components_by_quantity(self):
         kit_ref = {

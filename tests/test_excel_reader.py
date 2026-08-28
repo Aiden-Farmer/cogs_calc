@@ -12,8 +12,6 @@ import pytest
 
 from src.data.datarows import Header, InventoryRow
 from src.data.excel.reader import (
-    _XL_CALCULATION_AUTOMATIC,
-    _XL_CALCULATION_MANUAL,
     CouldNotOpenFile,
     ExcelDataSource,
     ExcelFileReader,
@@ -458,7 +456,7 @@ class TestRemoveWbDatesAfterTarget:
         assert mock_app.ScreenUpdating is False
         # Restored to automatic before Save() so the saved file doesn't
         # persist manual calculation mode.
-        assert mock_app.Calculation == _XL_CALCULATION_AUTOMATIC
+        assert mock_wb.calculation.calcMode == "automatic"
 
     def test_calculation_is_manual_while_pruning(self, tmp_path, monkeypatch):
         monkeypatch.setattr(sys, "platform", "win32")

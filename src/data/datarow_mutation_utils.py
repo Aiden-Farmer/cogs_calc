@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable, Iterator
 from copy import copy
 from decimal import Decimal
@@ -5,7 +6,9 @@ from pathlib import Path
 from pickle import loads
 from typing import TypeVar
 
-from .datarows import FailedRow, LandedCostRow, RowLike
+from .datarows import FailedRow, LandedCostRow, RowLike, SalesRow
+
+logger = logging.getLogger("COGS")
 
 kit_ref_path = Path.cwd() / "private" / "kits.obj"
 cost_ref_path = Path.cwd() / "private" / "costs.obj"
@@ -14,14 +17,14 @@ try:
     with open(kit_ref_path, "rb") as fd:
         kit_ref = loads(fd.read())
 except EOFError, FileNotFoundError:  # EOFError to cover file exists but no data
-    print("Kits.obj has no data, program will be unable to split kits.")
+    logger.warning("Kits.obj has no data, program will be unable to split kits.")
     kit_ref = {}
 
 try:
     with open(cost_ref_path, "rb") as fd:
         cost_ref = loads(fd.read())
 except EOFError, FileNotFoundError:  # EOFError to cover file  exists but no data
-    print(
+    logger.warning(
         "costs.obj has no data, program will be unable to allocate component costs on a value basis."
     )
     cost_ref = {}
@@ -113,6 +116,16 @@ def split_kits(  # noqa: UP047
                         total_components=c_info.get("total_components"),
                         user_defined_cost_allocation=c_info["pc_of_total_cost"],
                     )
+                    yield c
+                continue
+            elif isinstance(item, SalesRow):
+                for c_sku, c_info in kit_ref[item.sku].items():
+                    c = copy(item)
+                    c.sku = c_sku
+                    c.qty = {
+                        channel: qty * c_info["qty"]
+                        for channel, qty in item.qty.items()
+                    }
                     yield c
                 continue
             else:
