@@ -131,7 +131,7 @@ class InventoryRow(RowLike):
         # One column per sales channel, continuing on from "g" above, then
         # one more per channel for sales value; order matches
         # SalesData.sales_qty/.sales_value's definition order, which
-        # write_outfile relies on to build matching headers.
+        # write_outfile relies on to build matching headers/cost_row.
         qty_start = ord("h")
         for i, qty in enumerate(self.sales.sales_qty.values()):
             row[chr(qty_start + i)] = qty
@@ -146,8 +146,7 @@ class InventoryRow(RowLike):
         if cost_row.qty <= 0:
             self.excluded_dates.append(cost_row.date)
             logger.warning(
-                "Potential data integrity error and purchases datasource 0 qty purchase row: ",
-                cost_row,
+                f"Potential data integrity error and purchases datasource 0 qty purchase row: {cost_row}"
             )
             return
 
@@ -160,7 +159,12 @@ class InventoryRow(RowLike):
             self.total_cost += self.unallocated * cost_row.unit_cost
             self.average_cost = self.total_cost / self.qty
             self.purchase_dates.append(cost_row.date)
-            self.unallocated = Decimal(0)
+            _cost_remaining_qty_after_allocation = cost_row.qty - self.unallocated
+            self.unallocated -= self.unallocated
+
+            # Allocate sales value of remaining cost_row qty if needed.
+            cost_row.qty = _cost_remaining_qty_after_allocation
+            self.sales_value(cost_row)
             return
 
         elif cost_row.qty < self.unallocated:
@@ -170,7 +174,7 @@ class InventoryRow(RowLike):
                 self.average_cost = self.total_cost / (self.qty - self.unallocated)
             except InvalidOperation, DivisionByZero:
                 logger.error(
-                    "issue:", self.qty, cost_row.qty, self.unallocated, self.sku
+                    f"issue: {self.qty}, {cost_row.qty}, {self.unallocated}, {self.sku}"
                 )
                 self.average_cost = self.total_cost
             self.purchase_dates.append(cost_row.date)

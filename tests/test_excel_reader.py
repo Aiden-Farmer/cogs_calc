@@ -24,6 +24,9 @@ from src.data.excel.reader import (
 )
 from src.data.reader import AbstractReader
 
+_XL_CALCULATION_MANUAL = -4135
+_XL_CALCULATION_AUTOMATIC = -4105
+
 _INV_HEADER = Header.inventory_row(sku=0, base_sku=1, inventory=2)
 _OLE_FILE_SIG = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
@@ -456,7 +459,7 @@ class TestRemoveWbDatesAfterTarget:
         assert mock_app.ScreenUpdating is False
         # Restored to automatic before Save() so the saved file doesn't
         # persist manual calculation mode.
-        assert mock_wb.calculation.calcMode == "automatic"
+        assert mock_app.Calculation == _XL_CALCULATION_AUTOMATIC
 
     def test_calculation_is_manual_while_pruning(self, tmp_path, monkeypatch):
         monkeypatch.setattr(sys, "platform", "win32")

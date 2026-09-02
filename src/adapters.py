@@ -163,6 +163,11 @@ def allocate_landed_costs(
             failed_rows.append(cost_row)
             continue
 
+        if not cost_row.qty:
+            # Purchases data does not gaurantee rows that have a total_cost and/or unit_cost value(s) will have a qty > 0.
+            failed_rows.append(cost_row)
+            continue
+
         if cost_row.sku not in inventory:
             failed_rows.append(
                 FailedRow(
