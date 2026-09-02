@@ -4,7 +4,6 @@ logger = logging.getLogger("COGS")
 
 from os import startfile
 from typing import TypeVar
-
 import openpyxl as xl
 from tqdm import tqdm
 
@@ -160,6 +159,11 @@ def allocate_landed_costs(
     failed_rows: list[FailedRow] = []
     for cost_row in tqdm(cost_reader.readline(), desc="Reading purchase records"):
         if isinstance(cost_row, FailedRow):
+            failed_rows.append(cost_row)
+            continue
+    
+        if not cost_row.qty:
+            # Purchases data does not gaurantee rows that have a total_cost and/or unit_cost value(s) will have a qty > 0.
             failed_rows.append(cost_row)
             continue
 

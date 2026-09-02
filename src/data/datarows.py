@@ -160,7 +160,12 @@ class InventoryRow(RowLike):
             self.total_cost += self.unallocated * cost_row.unit_cost
             self.average_cost = self.total_cost / self.qty
             self.purchase_dates.append(cost_row.date)
-            self.unallocated = Decimal(0)
+            _cost_remaining_qty_after_allocation = cost_row.qty - self.unallocated
+            self.unallocated -= self.unallocated
+           
+            # Allocate sales value of remaining cost_row qty if needed.
+            cost_row.qty = _cost_remaining_qty_after_allocation
+            self.sales_value(cost_row)
             return
 
         elif cost_row.qty < self.unallocated:
