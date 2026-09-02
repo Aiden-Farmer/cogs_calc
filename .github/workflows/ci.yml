@@ -61,23 +61,23 @@ jobs:
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         shell: bash
         run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           mkdir -p /tmp/badge-publish
           cat > /tmp/badge-publish/coverage.json <<EOF
           {"schemaVersion": 1, "label": "coverage", "message": "${{ steps.badge.outputs.pct }}%", "color": "${{ steps.badge.outputs.color }}"}
           EOF
-
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
+          
           if git ls-remote --exit-code --heads origin badges; then
-            git fetch origin badges
-            git checkout badges
+            git fetch origin badges:refs/remotes/origin/badges
+            git worktree add /tmp/badges-wt origin/badges
           else
-            git checkout --orphan badges
-            git rm -rf . > /dev/null 2>&1 || true
+            git worktree add --orphan -b badges /tmp/badges-wt
           fi
-
-          cp /tmp/badge-publish/coverage.json coverage-badge.json
+          
+          cp /tmp/badge-publish/coverage.json /tmp/badges-wt/coverage-badge.json
+          cd /tmp/badges-wt
           git add coverage-badge.json
           git commit -m "Update coverage badge [skip ci]" --allow-empty || echo "nothing to commit"
           git push origin badges
