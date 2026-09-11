@@ -20,7 +20,7 @@ from src.inventory_kits.reader import ExcelKitReader
 
 formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("COGS")
-logger.setLevel(0)
+logger.setLevel(logging.DEBUG)
 
 
 def setup_logging(handler_name, log_file=None, level=20):
@@ -129,20 +129,22 @@ def calculate_all_lineitems_average_cost_from_excel(
     failed_purchase_rows = allocate_landed_costs(cost_reader, inventory, transfers)
     _FAILED_PURCHASE_ROWS.extend(failed_purchase_rows)
 
+    print(inventory.get("CH-10-AB"))
+    
     write_outfile(inventory)
 
     # TODO log failures instead of stdout
     for record in _FAILED_INVENTORY_ROWS:
-        logger.info(record.context, ", ", record.row)
+        logger.info("Failed row: %s, %s", record.context, record.row)
 
     for record in _FAILED_PURCHASE_ROWS:
-        logger.info(record.context, ", ", record.row)
+        logger.info("Failed PURCHASE: %s, %s", record.context, record.row)
 
     for record in _FAILED_TRANSFER_ROWS:
-        logger.info(record.context, ", ", record.row)
+        logger.info("Failed TRANSFER: %s, %s", record.context, record.row)
 
     for record in _FAILED_SALES_ROWS:
-        logger.info(record.row, ", ", record.context)
+        logger.info("Failed SALE: %s, %s", record.row, record.context)
 
 
 def _transfers(transfer_file_path, transfer_sheet_name):
@@ -225,8 +227,9 @@ def main() -> None:
         setup_logging(handler_name="verbose", level=20)
     if args.very_verbose:
         # Very verbose overrides verbose handler if it exists.
-        for handler in logging.getLogger().handlers:
+        for handler in logger.handlers:
             if handler.name == "verbose":
+                logger.removeHandler(handler)
                 handler.close()
 
         setup_logging(handler_name="very_verbose", level=10)
