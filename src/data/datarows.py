@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Sequence
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC
 from datetime import datetime as dt
@@ -18,6 +19,15 @@ _INVALID_SKU_CHAR = {
     " ",
 }
 
+_CHANNELS = [
+        "Amazon",
+        "eBay",
+        "Etsy",
+        "Houzz",
+        "Shopify"
+        "Walmart"
+        "Wayfair",
+    ]
 
 class RowLike(ABC):
     must_sort: bool = False
@@ -146,12 +156,13 @@ class InventoryRow(RowLike):
         if cost_row.qty <= 0:
             self.excluded_dates.append(cost_row.date)
             logger.warning(
-                f"Potential data integrity error and purchases datasource 0 qty purchase row: {cost_row}"
+                "Potential data integrity error and purchases datasource 0 qty purchase row: %s",
+                cost_row
             )
             return
 
         if self.unallocated == 0:
-            if not self.sales_value(cost_row):
+            if not self.calculate_sales_value(cost_row):
                 self.excluded_dates.append(cost_row.date)
             return
 
@@ -164,7 +175,9 @@ class InventoryRow(RowLike):
 
             # Allocate sales value of remaining cost_row qty if needed.
             cost_row.qty = _cost_remaining_qty_after_allocation
-            self.sales_value(cost_row)
+            self.calculate_sales_value(cost_row)
+            if self.sku == "CH-10-AB":
+                print("cost > Inv; cost_row:{cost_row.unit_cost}, dd ")
             return
 
         elif cost_row.qty < self.unallocated:
@@ -174,14 +187,17 @@ class InventoryRow(RowLike):
                 self.average_cost = self.total_cost / (self.qty - self.unallocated)
             except InvalidOperation, DivisionByZero:
                 logger.error(
-                    f"issue: {self.qty}, {cost_row.qty}, {self.unallocated}, {self.sku}"
+                    "issue: %s, %s, %s,  %s", self.qty, cost_row.qty, self.unallocated, self.sku
                 )
                 self.average_cost = self.total_cost
             self.purchase_dates.append(cost_row.date)
 
-    def sales_value(self, cost_row):
+    def calculate_sales_value(self, cost_row):
         if (unallocated := (self.sales.total_sales - self.sales.allocated_sales)) <= 0:
             return False
+
+        if unallocated < 0 or cost_row.qty < 0:
+            raise ValueError("neither unallocated nor cost row quantities can be less than zero. %s, %s.", self, cost_row)
         self.sales.total_cost += cost_row.unit_cost * min(unallocated, cost_row.qty)
         self.sales.allocated_sales += min(unallocated, cost_row.qty)
 
@@ -190,6 +206,8 @@ class InventoryRow(RowLike):
             unit_cost = Decimal(self.sales.total_cost / self.sales.allocated_sales)
             for channel, qty in self.sales.sales_qty.items():
                 self.sales.sales_value[channel] = unit_cost * qty
+
+
 
     def record_sale(self, channel: str, qty: int):
         if channel not in self.sales.sales_qty:
@@ -205,7 +223,8 @@ class InventoryRow(RowLike):
             f"average_cost={self.average_cost!r}, "
             f"purchase_dates={self.purchase_dates!r}, "
             f"excluded_dates={self.excluded_dates!r}, "
-            f"total_cost={self.total_cost!r})"
+            f"total_cost={self.total_cost!r},"
+            f"sales={self.sales})"    
         )
 
 
@@ -385,7 +404,7 @@ class LandedCostDTO:
                 f"Purchase dated {date:%Y-%m-%d} is after "
                 f"as_of_date {header.as_of_date:%Y-%m-%d}; excluded."
             )
-            logger.info(context, row)
+            logger.info("Failed row: %s, %s", context, row)
             return FailedRow(row=row, error=ValueError(), context=context)
 
         dto.date = date
@@ -448,25 +467,11 @@ class SalesDTO:
 
 class SalesData:
     def __init__(self):
-        self.sales_qty = {
-            "Amazon": 0,
-            "eBay": 0,
-            "Etsy": 0,
-            "Houzz": 0,
-            "Shopify": 0,
-            "Walmart": 0,
-            "Wayfair": 0,
-        }
-
-        self.sales_value = {
-            "Amazon": 0,
-            "eBay": 0,
-            "Etsy": 0,
-            "Houzz": 0,
-            "Shopify": 0,
-            "Walmart": 0,
-            "Wayfair": 0,
-        }
+        # TODO would prefer that Channel keys are more clearly stored as None/Null type, 
+        # but  current interaction does not check for None.
+        # If it did I could use fromkeys and initalize values to None.
+        self.sales_qty: dict[str, int]  = dict.fromkeys(_CHANNELS, 0)
+        self.sales_value = dict.fromkeys(_CHANNELS, Decimal(0))
         self.total_sales = 0
         self.allocated_sales = 0
         self.total_cost = 0
