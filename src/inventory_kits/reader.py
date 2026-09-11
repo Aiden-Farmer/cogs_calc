@@ -78,7 +78,7 @@ class ExcelKitReader:
 
             self.total_costs[kit] = total_cost
             if not total_cost:
-                logger.info(f"no cost ratio from sellerlcoud cloud... {kit}")
+                logger.info("no cost ratio from sellerlcoud cloud...%s", kit)
                 continue
 
             for component in components:
