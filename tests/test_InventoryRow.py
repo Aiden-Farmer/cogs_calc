@@ -237,6 +237,82 @@ class TestInventoryRowAllocation:
         assert exported["h"] == 4  # Amazon is the first defined channel
         assert exported["i"] == 2  # eBay is the second
 
+    def test_single_cost_row_split_between_inventory_and_sales_preserves_both_costs(
+        self,
+    ):
+        """A single LandedCostRow can be large enough to finish filling
+        InventoryRow.unallocated *and* have qty left over that flows into
+        calculate_sales_value in the same call. Every unit -- and its
+        dollar cost -- from that one cost_row must land in exactly one of
+        the two buckets (inventory's total_cost or sales.total_cost), with
+        nothing lost or double-counted, and the per-channel sales_value
+        split must reconcile back to sales.total_cost once fully
+        allocated.
+        """
+        inv_row, cost = self._create_row_instances()
+
+        # Simulate prior purchases having already covered all but 40 of the
+        # 200 units of physical inventory.
+        inv_row.unallocated = Decimal(40)
+        inv_row.record_sale("Amazon", 60)  # sets total_sales == 60
+
+        cost.unit_cost = Decimal(3)
+        cost.qty = 100  # 40 finishes inventory, 60 exactly covers sales
+
+        inv_row.allocate_from_landed_cost(cost_row=cost)
+
+        # Inventory-side portion: 40 units @ 3.
+        assert inv_row.unallocated == Decimal(0)
+        assert inv_row.total_cost == Decimal(40) * cost.unit_cost
+        assert inv_row.average_cost == inv_row.total_cost / inv_row.qty
+
+        # Sales-side portion: remaining 60 units @ 3.
+        assert inv_row.sales.allocated_sales == Decimal(60)
+        assert inv_row.sales.total_cost == Decimal(60) * cost.unit_cost
+
+        # Nothing from the original cost_row's 100 units @ 3 was lost or
+        # double counted between the two buckets.
+        assert inv_row.total_cost + inv_row.sales.total_cost == Decimal(
+            100
+        ) * cost.unit_cost
+
+        # Sales were fully allocated by this same call, so the per-channel
+        # split should already be populated and reconcile back to
+        # sales.total_cost.
+        assert inv_row.sales.sales_value["Amazon"] == Decimal(60) * cost.unit_cost
+        assert sum(inv_row.sales.sales_value.values()) == inv_row.sales.total_cost
+
+    def test_cost_row_qty_exceeding_both_inventory_and_sales_need_is_silently_dropped(
+        self,
+    ):
+        """Characterization test: unlike a whole cost_row that arrives after
+        both inventory and sales are already fully allocated (which is
+        recorded in excluded_dates, see
+        test_purchase_after_inventory_fully_allocated_is_excluded), the
+        *leftover* portion of a cost_row that partially overshoots both
+        buckets in one call is neither added to any cost total nor
+        recorded in excluded_dates -- it is just discarded via the
+        cost_row.qty mutation in allocate_from_landed_cost. This documents
+        current behavior; it is not necessarily desired.
+        """
+        inv_row, cost = self._create_row_instances()
+
+        inv_row.unallocated = Decimal(40)
+        inv_row.record_sale("Amazon", 60)
+
+        cost.unit_cost = Decimal(3)
+        cost.qty = 150  # 40 to inventory, 60 to sales, 50 unaccounted for
+
+        inv_row.allocate_from_landed_cost(cost_row=cost)
+
+        assert inv_row.total_cost == Decimal(40) * cost.unit_cost
+        assert inv_row.sales.total_cost == Decimal(60) * cost.unit_cost
+        # The 50 leftover units' cost (150) is present nowhere:
+        assert inv_row.total_cost + inv_row.sales.total_cost != Decimal(
+            150
+        ) * cost.unit_cost
+        assert inv_row.excluded_dates == []
+
     def test_repr_includes_key_fields(self):
         inv_row, _ = self._create_row_instances()
 
