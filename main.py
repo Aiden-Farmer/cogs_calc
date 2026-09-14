@@ -66,7 +66,8 @@ _SALES_HEADER = Header.sales_row(
         "Shopify": 16,
         "Walmart": 24,
         "Wayfair": 20,
-    },
+        "Elegance_RCH":15
+        },
 )
 
 _TRANSACTION_SHEET_DATE_COLUMNS: TransactionSheetDateColumns = {

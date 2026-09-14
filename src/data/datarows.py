@@ -24,9 +24,10 @@ _CHANNELS = [
         "eBay",
         "Etsy",
         "Houzz",
-        "Shopify"
-        "Walmart"
+        "Shopify",
+        "Walmart",
         "Wayfair",
+        "Elegance_RCH",
     ]
 
 class RowLike(ABC):

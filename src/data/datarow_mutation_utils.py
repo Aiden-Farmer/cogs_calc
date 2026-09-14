@@ -101,6 +101,9 @@ def split_kits(  # noqa: UP047
                 yield item
                 continue
 
+            #Item is in kit_ref:
+            logger.info("%s: %s is split into %s", type(item), item.sku, kit_ref[item.sku].items())
+
             if isinstance(item, LandedCostRow):
                 for c_sku, c_info in (
                     kit_ref[item.sku].items()

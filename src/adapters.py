@@ -142,6 +142,7 @@ def allocate_landed_costs(
             inventory[cost_row.sku].allocate_from_landed_cost(cost_row)
             return
 
+        logger.info("Transfer allocation, from: %s, to: %s, qty: %s", transfer_row.from_sku, transfer_row.to_sku, transfer_row.qty)
         target_row = inventory[transfer_row.to_sku]
         original_qty = cost_row.qty
         redirected_qty = min(cost_row.qty, transfer_row.qty)
@@ -217,7 +218,12 @@ def write_outfile(
     while True:
         try:
             wb.save(outfile_name)
-            startfile(outfile_name)
+            startfile(outfile_name, show_cmd=0) #SW_HIDE=0, should hide startfile'd window. 
+            # https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow 
+            #Unsure why still visible?
+            # "It is up to the application to decide how to handle it[nShowCmd flag]"
+            # Excel seems to respect nSHowCmd=0 when process running, but on cold start excel does excel, fuck your flag.
+            # PyWin32 provides win32com lib that allows application_name.Visible = False, which allegedly is respected.
             break
         except PermissionError:
             logger.error(
