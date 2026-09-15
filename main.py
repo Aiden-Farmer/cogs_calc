@@ -53,9 +53,9 @@ _TRANSFER_HEADER = Header.transfer_row(
     date_format="%Y-%m-%d",
 )
 
-# Placeholder columns -- update to match the real sales sheet layout.
 # One row per sku; each channel below maps to its own qty-sold column.
 # Keys must match SalesData.sales_qty's keys exactly (case-sensitive).
+# Column indices match the "Inventory" sheet's header row (0-indexed).
 _SALES_HEADER = Header.sales_row(
     sku=2,
     channel_columns={
@@ -66,8 +66,8 @@ _SALES_HEADER = Header.sales_row(
         "Shopify": 16,
         "Walmart": 24,
         "Wayfair": 20,
-        "Elegance_RCH":15
-        },
+        "Elegance_RCH": 26,
+    },
 )
 
 _TRANSACTION_SHEET_DATE_COLUMNS: TransactionSheetDateColumns = {
@@ -94,6 +94,7 @@ def calculate_all_lineitems_average_cost_from_excel(
     as_of_date: datetime | None = None,
     sales_file_path: str | None = None,
     sales_sheet_name: str | None = None,
+    output_file: str = "outfile.xlsx",
 ):
     if as_of_date:
         remove_wb_dates_after_target(
@@ -131,8 +132,8 @@ def calculate_all_lineitems_average_cost_from_excel(
     _FAILED_PURCHASE_ROWS.extend(failed_purchase_rows)
 
     print(inventory.get("CH-10-AB"))
-    
-    write_outfile(inventory)
+
+    write_outfile(inventory, outfile_name=output_file)
 
     # TODO log failures instead of stdout
     for record in _FAILED_INVENTORY_ROWS:
@@ -205,6 +206,13 @@ def main() -> None:
     parser.add_argument("--sales-sheet-name")
 
     parser.add_argument(
+        "--output-file",
+        "-o",
+        default="outfile.xlsx",
+        help="Path to write the Inventory Asset Value workbook to.",
+    )
+
+    parser.add_argument(
         "--kit-upload",
         help=" Upload a kit file to split purchases and inventory into kit components.",
     )
@@ -257,6 +265,7 @@ def main() -> None:
         as_of_date=args.as_of_date,
         sales_file_path=args.sales_file,
         sales_sheet_name=args.sales_sheet_name,
+        output_file=args.output_file,
     )
 
 

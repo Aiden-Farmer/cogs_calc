@@ -272,9 +272,10 @@ class TestInventoryRowAllocation:
 
         # Nothing from the original cost_row's 100 units @ 3 was lost or
         # double counted between the two buckets.
-        assert inv_row.total_cost + inv_row.sales.total_cost == Decimal(
-            100
-        ) * cost.unit_cost
+        assert (
+            inv_row.total_cost + inv_row.sales.total_cost
+            == Decimal(100) * cost.unit_cost
+        )
 
         # Sales were fully allocated by this same call, so the per-channel
         # split should already be populated and reconcile back to
@@ -308,9 +309,10 @@ class TestInventoryRowAllocation:
         assert inv_row.total_cost == Decimal(40) * cost.unit_cost
         assert inv_row.sales.total_cost == Decimal(60) * cost.unit_cost
         # The 50 leftover units' cost (150) is present nowhere:
-        assert inv_row.total_cost + inv_row.sales.total_cost != Decimal(
-            150
-        ) * cost.unit_cost
+        assert (
+            inv_row.total_cost + inv_row.sales.total_cost
+            != Decimal(150) * cost.unit_cost
+        )
         assert inv_row.excluded_dates == []
 
     def test_repr_includes_key_fields(self):
