@@ -104,11 +104,11 @@ def split_kits(  # noqa: UP047
             # Item is in kit_ref:
             if "BP-20600" in [sku for sku in kit_ref[item.sku]]:
                 logger.info(
-                "::::::%s: %s",
-                type(item),
-                item.sku,
-                #kit_ref[item.sku].items(),
-            )
+                    "::::::%s: %s",
+                    type(item),
+                    item.sku,
+                    # kit_ref[item.sku].items(),
+                )
 
             if isinstance(item, LandedCostRow):
                 for c_sku, c_info in (

@@ -52,7 +52,9 @@ class TestCalculateAllLineitemsAverageCostFromExcel:
         assert mock_give_reader.call_count == 2
         mock_build_inventory.assert_called_once_with(inv_reader)
         mock_allocate.assert_called_once_with(cost_reader, inventory, transfers)
-        mock_write_outfile.assert_called_once_with(inventory, outfile_name="outfile.xlsx")
+        mock_write_outfile.assert_called_once_with(
+            inventory, outfile_name="outfile.xlsx"
+        )
 
     def test_records_sales_against_inventory_before_allocating_landed_costs(self):
         inv_reader = object()
