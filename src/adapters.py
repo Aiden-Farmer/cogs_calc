@@ -3,9 +3,10 @@ import logging
 logger = logging.getLogger("COGS")
 
 from os import startfile
+from collections.abc import Iterable
 from typing import TypeVar
 
-import openpyxl as xl
+from openpyxl import Workbook
 from tqdm import tqdm
 
 from src.data import (
@@ -65,7 +66,7 @@ def build_inventory(
             inventory[inv_row.sku] = inv_row
 
     if not inventory:
-        raise DataSourceError
+        raise DataSourceError("Inventory file missing or empty!")
 
     return inventory, failed_rows
 
@@ -192,10 +193,12 @@ def allocate_landed_costs(
 
 
 def write_outfile(
-    inventory: dict[str, InventoryRow], outfile_name: str = "outfile.xlsx"
+    inventory: dict[str, InventoryRow],
+    metadata: list[Iterable[tuple]] | None = None,
+    outfile_name: str = "outfile.xlsx",
 ):
     """write results of average cost calculation to file"""
-    wb = xl.Workbook()
+    wb = Workbook()
     ws = wb.active
     if not ws:
         raise ValueError
@@ -219,6 +222,12 @@ def write_outfile(
     )
     for item in inventory.values():
         ws.append(item.export())
+
+    if metadata:
+        mdata_destination = wb.create_sheet("MetaData")
+        for rows in metadata:
+            for row in rows:
+                mdata_destination.append(row)
 
     while True:
         try:

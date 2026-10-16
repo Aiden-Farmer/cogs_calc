@@ -17,7 +17,7 @@ from src.adapters import (
 from src.data import FailedRow, Header, InventoryRow, LandedCostRow, SalesRow
 from src.data.excel import TransactionSheetDateColumns, remove_wb_dates_after_target
 from src.inventory_kits.reader import ExcelKitReader
-
+from src.sellercloud.timestamp import return_sellercloud_metadata 
 formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("COGS")
 logger.setLevel(logging.DEBUG)
@@ -41,7 +41,7 @@ _FAILED_PURCHASE_ROWS: list[FailedRow] = []
 _FAILED_TRANSFER_ROWS: list[FailedRow] = []
 _FAILED_SALES_ROWS: list[FailedRow] = []
 
-_INV_HEADER = Header.inventory_row(sku=2, base_sku=3, inventory=30)
+_INV_HEADER = Header.inventory_row(sku=0, base_sku=0, inventory=3)
 
 _PURCHASE_HEADER = Header.landed_cost(sku=6, qty=8, unit_cost=20, date=5)
 
@@ -57,33 +57,24 @@ _TRANSFER_HEADER = Header.transfer_row(
 # Keys must match SalesData.sales_qty's keys exactly (case-sensitive).
 # Column indices match the "Inventory" sheet's header row (0-indexed).
 _SALES_HEADER = Header.sales_row(
-    sku=2,
+    sku=0,
     channel_columns={
-        "Amazon": 21,
-        "eBay": 17,
-        "Etsy": 18,
-        "Houzz": 19,
-        "Shopify": 16,
-        "Walmart": 24,
-        "Wayfair": 20,
-        "Elegance_RCH": 26,
+        "Amazon": 13,
+        "eBay": 14,
+        "Etsy": 15,
+        "Houzz": 16,
+        "Shopify": 20,
+        "Walmart": 18,
+        "Wayfair": 19,
+        "Elegance_RCH": 21,
     },
 )
 
 _TRANSACTION_SHEET_DATE_COLUMNS: TransactionSheetDateColumns = {
-    "Purchases": 4,
-    "Prior Period Returns": 3,
-    "Adjustments": 1,
-    "AMAZON SC": 2,
-    "EBAY": 43,
-    "ETSY": 14,
-    "HOUZZ": 2,
-    "SHOPIFY": 15,
-    "WALMART": 2,
-    "WAYFAIR": 2,
-    "Elegance_RCH": 5,
+    "Table": 0,
 }
 
+sc_metadata = []
 
 def calculate_all_lineitems_average_cost_from_excel(
     inventory_file_path: str,
@@ -94,7 +85,7 @@ def calculate_all_lineitems_average_cost_from_excel(
     as_of_date: datetime | None = None,
     sales_file_path: str | None = None,
     sales_sheet_name: str | None = None,
-    output_file: str = "outfile.xlsx",
+    output_file: str|None=None
 ):
     if as_of_date:
         remove_wb_dates_after_target(
@@ -107,6 +98,10 @@ def calculate_all_lineitems_average_cost_from_excel(
         header=_INV_HEADER,
         return_type=InventoryRow,
     )
+    
+    sc_metadata.append(return_sellercloud_metadata(inv_reader.wb))
+
+
     _PURCHASE_HEADER.as_of_date = as_of_date
     cost_reader = give_reader(
         file_path=landed_cost_file_path,
@@ -114,9 +109,10 @@ def calculate_all_lineitems_average_cost_from_excel(
         header=_PURCHASE_HEADER,
         return_type=LandedCostRow,
     )
-
+    
     inventory, failed_inventory_rows = build_inventory(inv_reader)
     _FAILED_INVENTORY_ROWS.extend(failed_inventory_rows)
+
 
     if sales_file_path and sales_sheet_name:
         sales_reader = give_reader(
@@ -128,12 +124,16 @@ def calculate_all_lineitems_average_cost_from_excel(
         failed_sales_rows = record_sales(sales_reader, inventory)
         _FAILED_SALES_ROWS.extend(failed_sales_rows)
 
+        #Need to flag to check if file origin sellercloud for metadata extraction
+        sc_metadata.append(return_sellercloud_metadata(sales_reader.wb))
+
+
     failed_purchase_rows = allocate_landed_costs(cost_reader, inventory, transfers)
     _FAILED_PURCHASE_ROWS.extend(failed_purchase_rows)
 
-    print(inventory.get("CH-10-AB"))
+    #If Sellercloud originated sales and inventory, we can validate dates.
 
-    write_outfile(inventory, outfile_name=output_file)
+    write_outfile(inventory, metadata=sc_metadata)
 
     # TODO log failures instead of stdout
     for record in _FAILED_INVENTORY_ROWS:
@@ -192,7 +192,7 @@ def main() -> None:
     parser.add_argument(
         "--purchase-file",
         "-p",
-        default="private/landed cost.xlsx",
+        default="private/purchases.xlsx",
     )
 
     parser.add_argument("--inventory-file", "-i", default="private/inventory.xlsx")
@@ -222,6 +222,11 @@ def main() -> None:
         type=_parse_as_of_date,
         default=None,
         help="fmt: [YYYY-MM-DD] remove inventory transactions that postdate --as-of-date,",
+    )
+
+    parser.add_argument(
+        "--check-sales-for-out-of-period",
+        action=argparse.BooleanOptionalAction,
     )
 
     parser.add_argument("--verbose", "-v", action="store_true", help="Verbose")

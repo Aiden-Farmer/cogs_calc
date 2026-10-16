@@ -102,11 +102,12 @@ def split_kits(  # noqa: UP047
                 continue
 
             # Item is in kit_ref:
-            if "BP-20600" in [sku for sku in kit_ref[item.sku]]:
-                logger.info(
-                    "::::::%s: %s",
-                    type(item),
+            if "PSR-B3" in [sku for sku in kit_ref[item.sku]]:
+                logger.error(
+                    "::::::%s: %s, %s",
+                    type(item).__name__,
                     item.sku,
+                    item.__repr__ if item.__repr__ else "",
                     # kit_ref[item.sku].items(),
                 )
 
